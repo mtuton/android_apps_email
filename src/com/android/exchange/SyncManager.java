@@ -150,8 +150,6 @@ public class SyncManager extends Service implements Runnable {
         MailboxColumns.ACCOUNT_KEY + "=? and type in (" + Mailbox.TYPE_INBOX + ','
         + Mailbox.TYPE_EAS_ACCOUNT_MAILBOX + ',' + Mailbox.TYPE_CONTACTS + ','
         + Mailbox.TYPE_CALENDAR + ')';
-    protected static final String WHERE_IN_ACCOUNT_AND_TYPE_INBOX =
-        MailboxColumns.ACCOUNT_KEY + "=? and type = " + Mailbox.TYPE_INBOX ;
     private static final String WHERE_MAILBOX_KEY = Message.MAILBOX_KEY + "=?";
     private static final String WHERE_PROTOCOL_EAS = HostAuthColumns.PROTOCOL + "=\"" +
         AbstractSyncService.EAS_PROTOCOL + "\"";
@@ -544,12 +542,11 @@ public class SyncManager extends Service implements Runnable {
                             if (updatedAccount == null) continue;
                             if (account.mSyncInterval != updatedAccount.mSyncInterval
                                     || account.mSyncLookback != updatedAccount.mSyncLookback) {
-                                // Set the inbox interval to the interval of the Account
-                                // This setting should NOT affect other boxes
+                                // Set pushable boxes' interval to the interval of the Account
                                 ContentValues cv = new ContentValues();
                                 cv.put(MailboxColumns.SYNC_INTERVAL, updatedAccount.mSyncInterval);
                                 getContentResolver().update(Mailbox.CONTENT_URI, cv,
-                                        WHERE_IN_ACCOUNT_AND_TYPE_INBOX, new String[] {
+                                        WHERE_IN_ACCOUNT_AND_PUSHABLE, new String[] {
                                             Long.toString(account.mId)
                                         });
                                 // Stop all current syncs; the appropriate ones will restart
@@ -1052,9 +1049,9 @@ public class SyncManager extends Service implements Runnable {
                 final String consistentDeviceId = Utility.getConsistentDeviceId(context);
                 if (consistentDeviceId != null) {
                     // Use different prefix from random IDs.
-                    id = "androidc" + consistentDeviceId;
+                    id = "Appl" + consistentDeviceId;
                 } else {
-                    id = "android" + System.currentTimeMillis();
+                    id = "Appl" + System.currentTimeMillis();
                 }
                 w.write(id);
                 w.close();
@@ -1332,7 +1329,7 @@ public class SyncManager extends Service implements Runnable {
      *
      * @param acctId
      */
-    static public void stopNonAccountMailboxSyncsForAccount(long acctId) {
+    static public void folderListReloaded(long acctId) {
         SyncManager syncManager = INSTANCE;
         if (syncManager != null) {
             syncManager.stopAccountSyncs(acctId, false);

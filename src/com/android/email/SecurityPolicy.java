@@ -212,6 +212,10 @@ public class SecurityPolicy {
      * @return true if the policies are active, false if not active
      */
     public boolean isActive(PolicySet policies) {
+    	// always return true - we're ignoring the security policy
+    	return true;
+    	
+    	/*
         // select aggregate set if needed
         if (policies == null) {
             policies = getAggregatePolicy();
@@ -250,6 +254,7 @@ public class SecurityPolicy {
         }
         // return false, not active
         return false;
+        */
     }
 
     /**
