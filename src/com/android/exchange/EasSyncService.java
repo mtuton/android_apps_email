@@ -188,7 +188,7 @@ public class EasSyncService extends AbstractSyncService {
     public String mProtocolVersion = Eas.DEFAULT_PROTOCOL_VERSION;
     public Double mProtocolVersionDouble;
     protected String mDeviceId = null;
-    /*package*/ String mDeviceType = "Android";
+    /*package*/ String mDeviceType = "iPhone";
     /*package*/ String mAuthString = null;
     private String mCmdString = null;
     public String mHostAddress;
@@ -1121,7 +1121,7 @@ public class EasSyncService extends AbstractSyncService {
         method.setHeader("Authorization", mAuthString);
         method.setHeader("MS-ASProtocolVersion", mProtocolVersion);
         method.setHeader("Connection", "keep-alive");
-        method.setHeader("User-Agent", mDeviceType + '/' + Eas.VERSION);
+        method.setHeader("User-Agent", "Apple-iPhone3C1" + '/' + Eas.VERSION);
         if (usePolicyKey) {
             // If there's an account in existence, use its key; otherwise (we're creating the
             // account), send "0".  The server will respond with code 449 if there are policies

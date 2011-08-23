@@ -212,44 +212,7 @@ public class SecurityPolicy {
      * @return true if the policies are active, false if not active
      */
     public boolean isActive(PolicySet policies) {
-        // select aggregate set if needed
-        if (policies == null) {
-            policies = getAggregatePolicy();
-        }
-        // quick check for the "empty set" of no policies
-        if (policies == NO_POLICY_SET) {
-            return true;
-        }
-        DevicePolicyManager dpm = getDPM();
-        if (dpm.isAdminActive(mAdminName)) {
-            // check each policy explicitly
-            if (policies.mMinPasswordLength > 0) {
-                if (dpm.getPasswordMinimumLength(mAdminName) < policies.mMinPasswordLength) {
-                    return false;
-                }
-            }
-            if (policies.mPasswordMode > 0) {
-                if (dpm.getPasswordQuality(mAdminName) < policies.getDPManagerPasswordQuality()) {
-                    return false;
-                }
-                if (!dpm.isActivePasswordSufficient()) {
-                    return false;
-                }
-            }
-            if (policies.mMaxScreenLockTime > 0) {
-                // Note, we use seconds, dpm uses milliseconds
-                if (dpm.getMaximumTimeToLock(mAdminName) > policies.mMaxScreenLockTime * 1000) {
-                    return false;
-                }
-            }
-            // password failures are counted locally - no test required here
-            // no check required for remote wipe (it's supported, if we're the admin)
-
-            // making it this far means we passed!
-            return true;
-        }
-        // return false, not active
-        return false;
+    	return true;
     }
 
     /**
