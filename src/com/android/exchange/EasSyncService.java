@@ -2097,6 +2097,11 @@ public class EasSyncService extends AbstractSyncService {
                             .data(Tags.BASE_TRUNCATION_SIZE, Eas.EAS12_TRUNCATION_SIZE)
                             .end();
                 } else {
+                	// Send me MIME messages for Exchange 2003
+                	if (className.equals("Email")) {
+                        s.data(Tags.SYNC_MIME_SUPPORT, Eas.BODY_PREFERENCE_HTML)
+                          .data(Tags.SYNC_MIME_TRUNCATION, Eas.EAS2_5_TRUNCATION_SIZE);
+                    }
                     s.data(Tags.SYNC_TRUNCATION, Eas.EAS2_5_TRUNCATION_SIZE);
                 }
                 s.end();
