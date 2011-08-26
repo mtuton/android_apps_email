@@ -380,7 +380,7 @@ public class EmailSyncAdapter extends AbstractSyncAdapter {
         }
 
         private void bodyParser(Message msg) throws IOException {
-            String bodyType = Eas.BODY_PREFERENCE_TEXT;
+            String bodyType = Eas.BODY_PREFERENCE_HTML;
             String body = "";
             while (nextTag(Tags.EMAIL_BODY) != END) {
                 switch (tag) {
