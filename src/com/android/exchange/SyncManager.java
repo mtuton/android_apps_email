@@ -210,6 +210,11 @@ public class SyncManager extends Service implements Runnable {
     private EasSyncStatusObserver mSyncStatusObserver;
     private Object mStatusChangeListener;
     private EasAccountsUpdatedListener mAccountsUpdatedListener;
+    
+    /**
+     * String for the auto-sync changed Intent.  This isn't currently exposed by the API
+     */
+    public static String SYNC_CONN_STATUS_CHANGE = "com.android.sync.SYNC_CONN_STATUS_CHANGED";
 
     // Concurrent because CalendarSyncAdapter can modify the map during a wipe
     private ConcurrentHashMap<Long, CalendarObserver> mCalendarObservers =
@@ -1581,12 +1586,15 @@ public class SyncManager extends Service implements Runnable {
                     }
                 }
             } else if (intent.getAction().equals(
-                    ConnectivityManager.ACTION_BACKGROUND_DATA_SETTING_CHANGED)) {
+            		ConnectivityManager.ACTION_BACKGROUND_DATA_SETTING_CHANGED) ||
+            		intent.getAction().equals(
+            				SYNC_CONN_STATUS_CHANGE)) {
                 ConnectivityManager cm = (ConnectivityManager)SyncManager.this
                     .getSystemService(Context.CONNECTIVITY_SERVICE);
                 mBackgroundData = cm.getBackgroundDataSetting();
+                boolean masterAutoSync = ContentResolver.getMasterSyncAutomatically();
                 // If background data is now on, we want to kick SyncManager
-                if (mBackgroundData) {
+                if (mBackgroundData && masterAutoSync) {
                     kick("background data on");
                     log("Background data on; restart syncs");
                 // Otherwise, stop all syncs
@@ -1886,6 +1894,9 @@ public class SyncManager extends Service implements Runnable {
                 mBackgroundDataSettingReceiver = new ConnectivityReceiver();
                 registerReceiver(mBackgroundDataSettingReceiver, new IntentFilter(
                         ConnectivityManager.ACTION_BACKGROUND_DATA_SETTING_CHANGED));
+                
+                registerReceiver(mBackgroundDataSettingReceiver, new IntentFilter(
+                        SYNC_CONN_STATUS_CHANGE));
                 // Save away the current background data setting; we'll keep track of it with the
                 // receiver we just registered
                 ConnectivityManager cm = (ConnectivityManager)getSystemService(
@@ -2071,7 +2082,7 @@ public class SyncManager extends Service implements Runnable {
 
                     // If background data is off, we only sync Outbox
                     // Manual syncs are initiated elsewhere, so they will continue to be respected
-                    if (!mBackgroundData && type != Mailbox.TYPE_OUTBOX) {
+                    if (!(mBackgroundData && masterAutoSync) && type != Mailbox.TYPE_OUTBOX) {
                         continue;
                     }
 
