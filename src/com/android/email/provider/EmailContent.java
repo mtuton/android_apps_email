@@ -37,6 +37,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import com.android.email.helper.SimpleCrypto;
+
 
 /**
  * EmailContent is the superclass of the various classes of content stored by EmailProvider.
@@ -87,6 +89,8 @@ public abstract class EmailContent {
     private Uri mUri = null;
     // The id of the Content
     public long mId = NOT_SAVED;
+    
+    private static final String aec = "0xF5";
 
     // Write the Content into a ContentValues container
     public abstract ContentValues toContentValues();
@@ -350,19 +354,55 @@ public abstract class EmailContent {
         }
 
         public static String restoreBodyTextWithMessageId(Context context, long messageId) {
-            return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_TEXT);
+            //return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_TEXT);
+        	String bodyText = restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_TEXT);
+        	try {
+        		if (bodyText != null) bodyText = SimpleCrypto.decrypt(aec, bodyText.toString());
+        	} 
+        	catch (Exception e)
+        	{
+        		com.android.exchange.SyncManager.alwaysLog("decryption exception: " + e.toString());
+        	}
+        	return bodyText;
         }
 
         public static String restoreBodyHtmlWithMessageId(Context context, long messageId) {
-            return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_HTML);
+            //return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_HTML);
+        	String bodyText = restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_HTML);
+        	try {
+        		if (bodyText != null) bodyText = SimpleCrypto.decrypt(aec, bodyText.toString());
+        	} 
+        	catch (Exception e)
+        	{
+        		com.android.exchange.SyncManager.alwaysLog("decryption exception: " + e.toString());
+        	}
+        	return bodyText;
         }
 
         public static String restoreReplyTextWithMessageId(Context context, long messageId) {
-            return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_REPLY_TEXT);
+            //return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_REPLY_TEXT);
+            String bodyText = restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_REPLY_TEXT);
+        	try {
+        		if (bodyText != null) bodyText = SimpleCrypto.decrypt(aec, bodyText.toString());
+        	} 
+        	catch (Exception e)
+        	{
+        		com.android.exchange.SyncManager.alwaysLog("decryption exception: " + e.toString());
+        	}
+        	return bodyText;
         }
 
         public static String restoreReplyHtmlWithMessageId(Context context, long messageId) {
-            return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_REPLY_HTML);
+            //return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_REPLY_HTML);
+            String bodyText = restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_REPLY_HTML);
+        	try {
+        		if (bodyText != null) bodyText = SimpleCrypto.decrypt(aec, bodyText.toString());
+        	} 
+        	catch (Exception e)
+        	{
+        		com.android.exchange.SyncManager.alwaysLog("decryption exception: " + e.toString());
+        	}
+        	return bodyText;
         }
 
         public static String restoreIntroTextWithMessageId(Context context, long messageId) {
@@ -372,14 +412,28 @@ public abstract class EmailContent {
         @Override
         @SuppressWarnings("unchecked")
         public EmailContent.Body restore(Cursor c) {
-            mBaseUri = EmailContent.Body.CONTENT_URI;
-            mMessageKey = c.getLong(CONTENT_MESSAGE_KEY_COLUMN);
-            mHtmlContent = c.getString(CONTENT_HTML_CONTENT_COLUMN);
-            mTextContent = c.getString(CONTENT_TEXT_CONTENT_COLUMN);
-            mHtmlReply = c.getString(CONTENT_HTML_REPLY_COLUMN);
-            mTextReply = c.getString(CONTENT_TEXT_REPLY_COLUMN);
-            mSourceKey = c.getLong(CONTENT_SOURCE_KEY_COLUMN);
-            mIntroText = c.getString(CONTENT_INTRO_TEXT_COLUMN);
+        	//com.android.exchange.SyncManager.alwaysLog("EmailContent.Body restore() called");
+
+        	try {
+            	mBaseUri = EmailContent.Body.CONTENT_URI;
+                mMessageKey = c.getLong(CONTENT_MESSAGE_KEY_COLUMN);
+                mHtmlContent = c.getString(CONTENT_HTML_CONTENT_COLUMN);
+                mTextContent = c.getString(CONTENT_TEXT_CONTENT_COLUMN);
+                mHtmlReply = c.getString(CONTENT_HTML_REPLY_COLUMN);
+                mTextReply = c.getString(CONTENT_TEXT_REPLY_COLUMN);
+                mSourceKey = c.getLong(CONTENT_SOURCE_KEY_COLUMN);
+                mIntroText = c.getString(CONTENT_INTRO_TEXT_COLUMN);
+                
+                if (mHtmlContent != null) mHtmlContent = SimpleCrypto.decrypt(aec, mHtmlContent.toString());
+                if (mTextContent != null) mTextContent = SimpleCrypto.decrypt(aec, mTextContent.toString());
+                if (mHtmlReply   != null) mHtmlReply   = SimpleCrypto.decrypt(aec, mHtmlReply.toString());
+                if (mTextReply   != null) mTextReply   = SimpleCrypto.decrypt(aec, mTextReply.toString());
+            }
+            catch (Exception e)
+            {
+            	com.android.exchange.SyncManager.alwaysLog("decryption exception: " + e.toString());
+            }
+
             return this;
         }
 
@@ -742,23 +796,31 @@ public abstract class EmailContent {
         }
 
         public void addSaveOps(ArrayList<ContentProviderOperation> ops) {
+        	//com.android.exchange.SyncManager.alwaysLog("EmailContent.addSaveOps() called");
             // First, save the message
             ContentProviderOperation.Builder b = ContentProviderOperation.newInsert(mBaseUri);
             ops.add(b.withValues(toContentValues()).build());
 
             // Create and save the body
             ContentValues cv = new ContentValues();
-            if (mText != null) {
-                cv.put(Body.TEXT_CONTENT, mText);
-            }
-            if (mHtml != null) {
-                cv.put(Body.HTML_CONTENT, mHtml);
-            }
-            if (mTextReply != null) {
-                cv.put(Body.TEXT_REPLY, mTextReply);
-            }
-            if (mHtmlReply != null) {
-                cv.put(Body.HTML_REPLY, mHtmlReply);
+            try {
+	            if (mText != null) {
+	            	cv.put(Body.TEXT_CONTENT, SimpleCrypto.encrypt(aec, mText));
+	            }
+	            if (mHtml != null) {
+	                cv.put(Body.HTML_CONTENT, SimpleCrypto.encrypt(aec, mHtml));
+	            }
+	            if (mTextReply != null) {
+	                cv.put(Body.TEXT_REPLY, SimpleCrypto.encrypt(aec, mTextReply));
+	            }
+	            if (mHtmlReply != null) {
+	                cv.put(Body.HTML_REPLY, SimpleCrypto.encrypt(aec, mHtmlReply));
+	            }
+            } 
+            catch (Exception e)
+            {
+               	com.android.exchange.SyncManager.alwaysLog("encryption exception: " + e.toString());
+
             }
             if (mSourceKey != 0) {
                 cv.put(Body.SOURCE_MESSAGE_KEY, mSourceKey);
@@ -2211,30 +2273,60 @@ public abstract class EmailContent {
         @Override
         @SuppressWarnings("unchecked")
         public EmailContent.HostAuth restore(Cursor cursor) {
+        	//com.android.exchange.SyncManager.alwaysLog("EmailContent.HostAuth restore() called"); 
             mBaseUri = CONTENT_URI;
             mId = cursor.getLong(CONTENT_ID_COLUMN);
             mProtocol = cursor.getString(CONTENT_PROTOCOL_COLUMN);
             mAddress = cursor.getString(CONTENT_ADDRESS_COLUMN);
             mPort = cursor.getInt(CONTENT_PORT_COLUMN);
             mFlags = cursor.getInt(CONTENT_FLAGS_COLUMN);
-            mLogin = cursor.getString(CONTENT_LOGIN_COLUMN);
-            mPassword = cursor.getString(CONTENT_PASSWORD_COLUMN);
+            
+            // retrieve and decrypt the login credentials
+            String mLoginEnc = cursor.getString(CONTENT_LOGIN_COLUMN);
+            String mPasswordEnc = cursor.getString(CONTENT_PASSWORD_COLUMN); 
+            try {
+            	mLogin = SimpleCrypto.decrypt(aec, mLoginEnc);
+            	mPassword = SimpleCrypto.decrypt(aec, mPasswordEnc);
+            }
+            catch (Exception e)
+            {
+            	// ignored for now
+            	com.android.exchange.SyncManager.alwaysLog("decryption exception: " + e.toString());
+            }
+            
             mDomain = cursor.getString(CONTENT_DOMAIN_COLUMN);
             mAccountKey = cursor.getLong(CONTENT_ACCOUNT_KEY_COLUMN);
+            //com.android.exchange.SyncManager.alwaysLog("EmailContent.HostAuth restore() password: " + mPassword);
             return this;
         }
 
         @Override
         public ContentValues toContentValues() {
+        	//com.android.exchange.SyncManager.alwaysLog("EmailContent.ContentValues toContentValues() called");
+        	
+        	// encrypt and store the login credentials
+        	String mLoginEnc = "";
+        	String mPasswordEnc = "";
+            try {
+            	mLoginEnc = SimpleCrypto.encrypt(aec, mLogin);
+            	mPasswordEnc = SimpleCrypto.encrypt(aec, mPassword);
+            }
+            catch (Exception e)
+            {
+            	// ignored for now
+            	com.android.exchange.SyncManager.alwaysLog("encryption exception: " + e.toString());
+            }
+        	
             ContentValues values = new ContentValues();
             values.put(HostAuthColumns.PROTOCOL, mProtocol);
             values.put(HostAuthColumns.ADDRESS, mAddress);
             values.put(HostAuthColumns.PORT, mPort);
             values.put(HostAuthColumns.FLAGS, mFlags);
-            values.put(HostAuthColumns.LOGIN, mLogin);
-            values.put(HostAuthColumns.PASSWORD, mPassword);
+            values.put(HostAuthColumns.LOGIN, mLoginEnc);
+            values.put(HostAuthColumns.PASSWORD, mPasswordEnc);
             values.put(HostAuthColumns.DOMAIN, mDomain);
             values.put(HostAuthColumns.ACCOUNT_KEY, mAccountKey);
+            //com.android.exchange.SyncManager.alwaysLog("EmailContent.ContentValues toContentValues() password: " + mPassword);
             return values;
         }
 
