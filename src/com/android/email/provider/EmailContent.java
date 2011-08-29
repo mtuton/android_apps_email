@@ -354,7 +354,8 @@ public abstract class EmailContent {
         }
 
         public static String restoreBodyTextWithMessageId(Context context, long messageId) {
-            //return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_TEXT);
+            return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_TEXT);
+            /*
         	String bodyText = restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_TEXT);
         	try {
         		if (bodyText != null) bodyText = SimpleCrypto.decrypt(aec, bodyText.toString());
@@ -364,10 +365,12 @@ public abstract class EmailContent {
         		com.android.exchange.SyncManager.alwaysLog("decryption exception: " + e.toString());
         	}
         	return bodyText;
+        	*/
         }
 
         public static String restoreBodyHtmlWithMessageId(Context context, long messageId) {
-            //return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_HTML);
+            return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_HTML);
+            /*
         	String bodyText = restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_HTML);
         	try {
         		if (bodyText != null) bodyText = SimpleCrypto.decrypt(aec, bodyText.toString());
@@ -377,10 +380,12 @@ public abstract class EmailContent {
         		com.android.exchange.SyncManager.alwaysLog("decryption exception: " + e.toString());
         	}
         	return bodyText;
+        	*/
         }
 
         public static String restoreReplyTextWithMessageId(Context context, long messageId) {
-            //return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_REPLY_TEXT);
+            return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_REPLY_TEXT);
+            /*
             String bodyText = restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_REPLY_TEXT);
         	try {
         		if (bodyText != null) bodyText = SimpleCrypto.decrypt(aec, bodyText.toString());
@@ -390,10 +395,12 @@ public abstract class EmailContent {
         		com.android.exchange.SyncManager.alwaysLog("decryption exception: " + e.toString());
         	}
         	return bodyText;
+        	*/
         }
 
         public static String restoreReplyHtmlWithMessageId(Context context, long messageId) {
-            //return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_REPLY_HTML);
+            return restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_REPLY_HTML);
+            /*
             String bodyText = restoreTextWithMessageId(context, messageId, Body.COMMON_PROJECTION_REPLY_HTML);
         	try {
         		if (bodyText != null) bodyText = SimpleCrypto.decrypt(aec, bodyText.toString());
@@ -403,6 +410,7 @@ public abstract class EmailContent {
         		com.android.exchange.SyncManager.alwaysLog("decryption exception: " + e.toString());
         	}
         	return bodyText;
+        	*/
         }
 
         public static String restoreIntroTextWithMessageId(Context context, long messageId) {
@@ -414,7 +422,7 @@ public abstract class EmailContent {
         public EmailContent.Body restore(Cursor c) {
         	//com.android.exchange.SyncManager.alwaysLog("EmailContent.Body restore() called");
 
-        	try {
+        	//try {
             	mBaseUri = EmailContent.Body.CONTENT_URI;
                 mMessageKey = c.getLong(CONTENT_MESSAGE_KEY_COLUMN);
                 mHtmlContent = c.getString(CONTENT_HTML_CONTENT_COLUMN);
@@ -424,15 +432,15 @@ public abstract class EmailContent {
                 mSourceKey = c.getLong(CONTENT_SOURCE_KEY_COLUMN);
                 mIntroText = c.getString(CONTENT_INTRO_TEXT_COLUMN);
                 
-                if (mHtmlContent != null) mHtmlContent = SimpleCrypto.decrypt(aec, mHtmlContent.toString());
-                if (mTextContent != null) mTextContent = SimpleCrypto.decrypt(aec, mTextContent.toString());
-                if (mHtmlReply   != null) mHtmlReply   = SimpleCrypto.decrypt(aec, mHtmlReply.toString());
-                if (mTextReply   != null) mTextReply   = SimpleCrypto.decrypt(aec, mTextReply.toString());
-            }
-            catch (Exception e)
-            {
-            	com.android.exchange.SyncManager.alwaysLog("decryption exception: " + e.toString());
-            }
+                //if (mHtmlContent != null) mHtmlContent = SimpleCrypto.decrypt(aec, mHtmlContent.toString());
+                //if (mTextContent != null) mTextContent = SimpleCrypto.decrypt(aec, mTextContent.toString());
+                //if (mHtmlReply   != null) mHtmlReply   = SimpleCrypto.decrypt(aec, mHtmlReply.toString());
+                //if (mTextReply   != null) mTextReply   = SimpleCrypto.decrypt(aec, mTextReply.toString());
+            //}
+            //catch (Exception e)
+            //{
+            //	com.android.exchange.SyncManager.alwaysLog("decryption exception: " + e.toString());
+            //}
 
             return this;
         }
@@ -805,16 +813,20 @@ public abstract class EmailContent {
             ContentValues cv = new ContentValues();
             try {
 	            if (mText != null) {
-	            	cv.put(Body.TEXT_CONTENT, SimpleCrypto.encrypt(aec, mText));
+	            	cv.put(Body.TEXT_CONTENT, mText);
+	            	//cv.put(Body.TEXT_CONTENT, SimpleCrypto.encrypt(aec, mText));
 	            }
 	            if (mHtml != null) {
-	                cv.put(Body.HTML_CONTENT, SimpleCrypto.encrypt(aec, mHtml));
+	                cv.put(Body.HTML_CONTENT, mHtml);
+	                //cv.put(Body.HTML_CONTENT, SimpleCrypto.encrypt(aec, mHtml));
 	            }
 	            if (mTextReply != null) {
-	                cv.put(Body.TEXT_REPLY, SimpleCrypto.encrypt(aec, mTextReply));
+	                cv.put(Body.TEXT_REPLY, mTextReply);
+	                //cv.put(Body.TEXT_REPLY, SimpleCrypto.encrypt(aec, mTextReply));
 	            }
 	            if (mHtmlReply != null) {
-	                cv.put(Body.HTML_REPLY, SimpleCrypto.encrypt(aec, mHtmlReply));
+	                cv.put(Body.HTML_REPLY, mHtmlReply);
+	                //cv.put(Body.HTML_REPLY, SimpleCrypto.encrypt(aec, mHtmlReply));
 	            }
             } 
             catch (Exception e)
@@ -2280,13 +2292,15 @@ public abstract class EmailContent {
             mAddress = cursor.getString(CONTENT_ADDRESS_COLUMN);
             mPort = cursor.getInt(CONTENT_PORT_COLUMN);
             mFlags = cursor.getInt(CONTENT_FLAGS_COLUMN);
-            
-            // retrieve and decrypt the login credentials
-            String mLoginEnc = cursor.getString(CONTENT_LOGIN_COLUMN);
-            String mPasswordEnc = cursor.getString(CONTENT_PASSWORD_COLUMN); 
+            mLogin = cursor.getString(CONTENT_LOGIN_COLUMN);
+            //mPassword = cursor.getString(CONTENT_PASSWORD_COLUMN); 
+            mDomain = cursor.getString(CONTENT_DOMAIN_COLUMN);
+            mAccountKey = cursor.getLong(CONTENT_ACCOUNT_KEY_COLUMN);
+
+            // retrieve and decrypt the login credentials (only password for now)
             try {
-            	mLogin = SimpleCrypto.decrypt(aec, mLoginEnc);
-            	mPassword = SimpleCrypto.decrypt(aec, mPasswordEnc);
+            	//mPassword = SimpleCrypto.decrypt(aec, cursor.getString(CONTENT_PASSWORD_COLUMN));
+            	mPassword = SimpleCrypto.fromStash(cursor.getString(CONTENT_PASSWORD_COLUMN));
             }
             catch (Exception e)
             {
@@ -2294,8 +2308,6 @@ public abstract class EmailContent {
             	com.android.exchange.SyncManager.alwaysLog("decryption exception: " + e.toString());
             }
             
-            mDomain = cursor.getString(CONTENT_DOMAIN_COLUMN);
-            mAccountKey = cursor.getLong(CONTENT_ACCOUNT_KEY_COLUMN);
             //com.android.exchange.SyncManager.alwaysLog("EmailContent.HostAuth restore() password: " + mPassword);
             return this;
         }
@@ -2304,28 +2316,28 @@ public abstract class EmailContent {
         public ContentValues toContentValues() {
         	//com.android.exchange.SyncManager.alwaysLog("EmailContent.ContentValues toContentValues() called");
         	
-        	// encrypt and store the login credentials
-        	String mLoginEnc = "";
-        	String mPasswordEnc = "";
+            ContentValues values = new ContentValues();
+            values.put(HostAuthColumns.PROTOCOL, mProtocol);
+            values.put(HostAuthColumns.ADDRESS, mAddress);
+            values.put(HostAuthColumns.PORT, mPort);
+            values.put(HostAuthColumns.FLAGS, mFlags);
+            values.put(HostAuthColumns.LOGIN, mLogin);
+            //values.put(HostAuthColumns.PASSWORD, mPassword);
+            values.put(HostAuthColumns.DOMAIN, mDomain);
+            values.put(HostAuthColumns.ACCOUNT_KEY, mAccountKey);
+
+        	// encrypt and store the login credentials (only password for now)
             try {
-            	mLoginEnc = SimpleCrypto.encrypt(aec, mLogin);
-            	mPasswordEnc = SimpleCrypto.encrypt(aec, mPassword);
+            	//values.put(HostAuthColumns.LOGIN, SimpleCrypto.toStash(mLogin));
+				//values.put(HostAuthColumns.PASSWORD, SimpleCrypto.encrypt(aec, mPassword));
+				values.put(HostAuthColumns.PASSWORD, SimpleCrypto.toStash(mPassword));
             }
             catch (Exception e)
             {
             	// ignored for now
             	com.android.exchange.SyncManager.alwaysLog("encryption exception: " + e.toString());
             }
-        	
-            ContentValues values = new ContentValues();
-            values.put(HostAuthColumns.PROTOCOL, mProtocol);
-            values.put(HostAuthColumns.ADDRESS, mAddress);
-            values.put(HostAuthColumns.PORT, mPort);
-            values.put(HostAuthColumns.FLAGS, mFlags);
-            values.put(HostAuthColumns.LOGIN, mLoginEnc);
-            values.put(HostAuthColumns.PASSWORD, mPasswordEnc);
-            values.put(HostAuthColumns.DOMAIN, mDomain);
-            values.put(HostAuthColumns.ACCOUNT_KEY, mAccountKey);
+
             //com.android.exchange.SyncManager.alwaysLog("EmailContent.ContentValues toContentValues() password: " + mPassword);
             return values;
         }

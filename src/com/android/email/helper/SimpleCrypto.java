@@ -7,6 +7,8 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import android.util.Base64;
+
 /**
  * Usage:
  * <pre>
@@ -30,7 +32,7 @@ public class SimpleCrypto {
 		byte[] result = decrypt(rawKey, enc);
 		return new String(result);
 	}
-
+	
 	private static byte[] getRawKey(byte[] seed) throws Exception {
 		KeyGenerator kgen = KeyGenerator.getInstance("AES");
 		SecureRandom sr = SecureRandom.getInstance("SHA1PRNG");
@@ -85,6 +87,35 @@ public class SimpleCrypto {
 	private final static String HEX = "0123456789ABCDEF";
 	private static void appendHex(StringBuffer sb, byte b) {
 		sb.append(HEX.charAt((b>>4)&0x0f)).append(HEX.charAt(b&0x0f));
+	}
+	
+	// Added following code to further simplify the encryption functions
+	/*
+	 * String crypto = SimpleCrypto.toStash(cleartext);
+	 * ...
+	 * String cleartext = SimpleCrypto.fromStash(crypto);
+	 * 
+	*/ 
+	public static String toStash(String cleartext) throws Exception {
+		//return toHex(getStash(0xF5,cleartext));
+		return Base64.encodeToString(getStash(0xF5,cleartext).getBytes(), Base64.NO_WRAP);
+	}
+	
+	public static String fromStash(String encrypted) throws Exception {
+		//return getStash(0xF5, fromHex(encrypted));
+		return getStash(0xF5, new String(Base64.decode(encrypted, Base64.DEFAULT)));
+	}
+
+	public static String getStash(int key, String buffer) throws Exception {
+		StringBuffer result = new StringBuffer();
+		
+		for (int i = 0; i < buffer.length(); i++) {
+			byte b = (byte)(buffer.charAt(i) ^ key);
+			char c = (char)b;
+			
+			result.append(c);			
+		}
+		return result.toString();		
 	}
 }
 
