@@ -265,11 +265,15 @@ public class EmailSyncAdapter extends AbstractSyncAdapter {
             try {
                 for (int i=0; i<multipart.getCount(); ++i) {
                     BodyPart part = multipart.getBodyPart(i);
+                    
+                    userLog("parseMimeBody() mimeType: " + part.getMimeType());
 
                     if (part.isMimeType("text/plain"))
                         textBody.append(MimeUtility.getTextFromPart(part));
                     else if (part.isMimeType("text/html"))
                         htmlBody.append(MimeUtility.getTextFromPart(part));
+                    else if (part.isMimeType("multipart/related"))
+                    	parseMimeBody((MimeMultipart)part.getBody());
                     else if (part.isMimeType("multipart/alternative"))
                         parseMimeBody((MimeMultipart)part.getBody());
                     else
