@@ -1680,7 +1680,7 @@ public class EasSyncService extends AbstractSyncService {
         int pingHeartbeat = mPingHeartbeat;
         userLog("runPingLoop");
         // Do push for all sync services here
-        long endTime = System.currentTimeMillis() + (30*MINUTES);
+        long endTime = System.currentTimeMillis() + (3*HOURS);
         HashMap<String, Integer> pingErrorMap = new HashMap<String, Integer>();
         ArrayList<String> readyMailboxes = new ArrayList<String>();
         ArrayList<String> notReadyMailboxes = new ArrayList<String>();
@@ -1868,15 +1868,15 @@ public class EasSyncService extends AbstractSyncService {
             } else if (pushCount > 0) {
                 // If we want to Ping, but can't just yet, wait a little bit
                 // TODO Change sleep to wait and use notify from SyncManager when a sync ends
-                sleep(2*SECONDS, false);
+                sleep(30*SECONDS, false);
                 pingWaitCount++;
-                //userLog("pingLoop waited 2s for: ", (pushCount - canPushCount), " box(es)");
+                userLog("pingLoop waited 30s for: ", (pushCount - canPushCount), " box(es)");
             } else if (uninitCount > 0) {
                 // In this case, we're doing an initial sync of at least one mailbox.  Since this
                 // is typically a one-time case, I'm ok with trying again every 10 seconds until
                 // we're in one of the other possible states.
                 userLog("pingLoop waiting for initial sync of ", uninitCount, " box(es)");
-                sleep(10*SECONDS, true);
+                sleep(60*SECONDS, true);
             } else {
                 // We've got nothing to do, so we'll check again in 20 minutes at which time
                 // we'll update the folder list, check for policy changes and/or remote wipe, etc.
