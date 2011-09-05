@@ -96,6 +96,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  * The SyncManager handles all aspects of starting, maintaining, and stopping the various sync
@@ -123,10 +125,10 @@ public class SyncManager extends Service implements Runnable {
     private static final int ONE_DAY_MINUTES = 1440;
 
     private static final int SYNC_MANAGER_HEARTBEAT_TIME = 15*MINUTES;
-    private static final int CONNECTIVITY_WAIT_TIME = 10*MINUTES;
+    private static final int CONNECTIVITY_WAIT_TIME = 60*MINUTES;
 
     // Sync hold constants for services with transient errors
-    private static final int HOLD_DELAY_MAXIMUM = 4*MINUTES;
+    private static final int HOLD_DELAY_MAXIMUM = 60*MINUTES;
 
     // Reason codes when SyncManager.kick is called (mainly for debugging)
     // UI has changed data, requiring an upsync of changes
@@ -874,7 +876,7 @@ public class SyncManager extends Service implements Runnable {
     /*package*/ class SyncError {
         int reason;
         boolean fatal = false;
-        long holdDelay = 15*SECONDS;
+        long holdDelay = 5*MINUTES;
         long holdEndTime = System.currentTimeMillis() + holdDelay;
 
         SyncError(int _reason, boolean _fatal) {
@@ -883,11 +885,12 @@ public class SyncManager extends Service implements Runnable {
         }
 
         /**
-         * We double the holdDelay from 15 seconds through 4 mins
+         * We double the holdDelay from 5 minutes through 60 mins
          */
         void escalate() {
-            if (holdDelay < HOLD_DELAY_MAXIMUM) {
-                holdDelay *= 2;
+        	holdDelay *= 2;
+            if (holdDelay > HOLD_DELAY_MAXIMUM) {
+                holdDelay = HOLD_DELAY_MAXIMUM;
             }
             holdEndTime = System.currentTimeMillis() + holdDelay;
         }
@@ -1250,6 +1253,13 @@ public class SyncManager extends Service implements Runnable {
         }
     }
 
+    // return a string that contains the date and time now (used in debugging)
+    private String theTimeNow() {
+    	SimpleDateFormat sdfDateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    	String result =  sdfDateTime.format(new Date(System.currentTimeMillis()));
+    	return result;
+    }
+
     private void acquireWakeLock(long id) {
         synchronized (mWakeLocks) {
             Boolean lock = mWakeLocks.get(id);
@@ -1258,13 +1268,13 @@ public class SyncManager extends Service implements Runnable {
                     PowerManager pm = (PowerManager)getSystemService(Context.POWER_SERVICE);
                     mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MAIL_SERVICE");
                     mWakeLock.acquire();
-                    //log("+WAKE LOCK ACQUIRED");
+                    log("+WAKE LOCK ACQUIRED: " + theTimeNow());
                 }
                 mWakeLocks.put(id, true);
              }
         }
     }
-
+    
     private void releaseWakeLock(long id) {
         synchronized (mWakeLocks) {
             Boolean lock = mWakeLocks.get(id);
@@ -1275,7 +1285,7 @@ public class SyncManager extends Service implements Runnable {
                         mWakeLock.release();
                     }
                     mWakeLock = null;
-                    //log("+WAKE LOCK RELEASED");
+                    log("+WAKE LOCK RELEASED: " + theTimeNow());
                 } else {
                 }
             }
@@ -1719,15 +1729,15 @@ public class SyncManager extends Service implements Runnable {
                     waiting = true;
                     stopServiceThreads();
                 }
-                // Wait until a network is connected (or 10 mins), but let the device sleep
+                // Wait until a network is connected (or 60 mins), but let the device sleep
                 // We'll set an alarm just in case we don't get notified (bugs happen)
                 synchronized (sConnectivityLock) {
                     runAsleep(SYNC_MANAGER_ID, CONNECTIVITY_WAIT_TIME+5*SECONDS);
                     try {
-                        log("Connectivity lock...");
+                        log("Connectivity lock..." + theTimeNow());
                         sConnectivityHold = true;
                         sConnectivityLock.wait(CONNECTIVITY_WAIT_TIME);
-                        log("Connectivity lock released...");
+                        log("Connectivity lock released..." + theTimeNow());
                     } catch (InterruptedException e) {
                         // This is fine; we just go around the loop again
                     } finally {
@@ -2409,7 +2419,7 @@ public class SyncManager extends Service implements Runnable {
                         log(m.mDisplayName + " held for " + syncError.holdDelay + "ms");
                     } else {
                         errorMap.put(mailboxId, syncManager.new SyncError(exitStatus, false));
-                        log(m.mDisplayName + " added to syncErrorMap, hold for 15s");
+                        log(m.mDisplayName + " added to syncErrorMap, hold for 5 minutes");
                     }
                     break;
                 // These errors are not retried automatically

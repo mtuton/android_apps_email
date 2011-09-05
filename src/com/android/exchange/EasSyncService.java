@@ -133,7 +133,7 @@ public class EasSyncService extends AbstractSyncService {
     // The amount of time the account mailbox will sleep if there are no pingable mailboxes
     // This could happen if the sync time is set to "never"; we always want to check in from time
     // to time, however, for folder list/policy changes
-    static private final int ACCOUNT_MAILBOX_SLEEP_TIME = 20*MINUTES;
+    static private final int ACCOUNT_MAILBOX_SLEEP_TIME = 60*MINUTES;
     static private final String ACCOUNT_MAILBOX_SLEEP_TEXT =
         "Account mailbox sleeping for " + (ACCOUNT_MAILBOX_SLEEP_TIME / MINUTES) + "m";
 
