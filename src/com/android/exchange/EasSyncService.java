@@ -1863,20 +1863,20 @@ public class EasSyncService extends AbstractSyncService {
             } else if (forcePing) {
                 // In this case, there aren't any boxes that are pingable, but there are boxes
                 // waiting (for IOExceptions)
-                userLog("pingLoop waiting 2m for any pingable boxes");
-                sleep(2*MINUTES, true);
+                userLog("pingLoop waiting 60s for any pingable boxes");
+                sleep(60*SECONDS, true);
             } else if (pushCount > 0) {
                 // If we want to Ping, but can't just yet, wait a little bit
                 // TODO Change sleep to wait and use notify from SyncManager when a sync ends
-                sleep(2*MINUTES, true);
+                sleep(2*SECONDS, false);
                 pingWaitCount++;
-                userLog("pingLoop waited 2m for: ", (pushCount - canPushCount), " box(es)");
+                userLog("pingLoop waited 2s for: ", (pushCount - canPushCount), " box(es)");
             } else if (uninitCount > 0) {
                 // In this case, we're doing an initial sync of at least one mailbox.  Since this
                 // is typically a one-time case, I'm ok with trying again every 10 seconds until
                 // we're in one of the other possible states.
                 userLog("pingLoop waiting for initial sync of ", uninitCount, " box(es)");
-                sleep(2*MINUTES, true);
+                sleep(10*SECONDS, true);
             } else {
                 // We've got nothing to do, so we'll check again in 20 minutes at which time
                 // we'll update the folder list, check for policy changes and/or remote wipe, etc.

@@ -128,7 +128,7 @@ public class SyncManager extends Service implements Runnable {
     private static final int CONNECTIVITY_WAIT_TIME = 60*MINUTES;
 
     // Sync hold constants for services with transient errors
-    private static final int HOLD_DELAY_MAXIMUM = 15*MINUTES;
+    private static final int HOLD_DELAY_MAXIMUM = 30*MINUTES;
 
     // Reason codes when SyncManager.kick is called (mainly for debugging)
     // UI has changed data, requiring an upsync of changes
