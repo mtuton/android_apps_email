@@ -70,6 +70,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebSettings;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -386,11 +387,18 @@ public class MessageView extends Activity implements OnClickListener {
         mMeetingNo.setOnClickListener(this);
         findViewById(R.id.invite_link).setOnClickListener(this);
 
-        mMessageContentView.setClickable(true);
-        mMessageContentView.setLongClickable(false);    // Conflicts with ScrollView, unfortunately
-        mMessageContentView.setVerticalScrollBarEnabled(false);
+        //mMessageContentView.setClickable(true);
+        //mMessageContentView.setLongClickable(false);    // Conflicts with ScrollView, unfortunately
+        //mMessageContentView.setVerticalScrollBarEnabled(false);
+        mMessageContentView.setVerticalScrollBarEnabled(true);
+        mMessageContentView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+        mMessageContentView.getSettings().setRenderPriority(WebSettings.RenderPriority.HIGH);
+        //mMessageContentView.getSettings().setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
+        mMessageContentView.getSettings().setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
         mMessageContentView.getSettings().setBlockNetworkLoads(true);
-        mMessageContentView.getSettings().setSupportZoom(false);
+        mMessageContentView.getSettings().setSupportZoom(true);
+        mMessageContentView.getSettings().setBuiltInZoomControls(true);
+        // mMessageContentView.getSettings().setDisplayZoomControls(false); // needs API level 11 (Android 3.0)
         mMessageContentView.setWebViewClient(new CustomWebViewClient());
 
         mProgressDialog = new ProgressDialog(this);
