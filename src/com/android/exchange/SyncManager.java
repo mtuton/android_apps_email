@@ -1257,7 +1257,7 @@ public class SyncManager extends Service implements Runnable {
 
     // return a string that contains the date and time now (used in debugging)
     private String theTimeNow() {
-    	SimpleDateFormat sdfDateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    	SimpleDateFormat sdfDateTime = new SimpleDateFormat("HH:mm:ss");
     	String result =  sdfDateTime.format(new Date(System.currentTimeMillis()));
     	return result;
     }
@@ -1270,7 +1270,7 @@ public class SyncManager extends Service implements Runnable {
                     PowerManager pm = (PowerManager)getSystemService(Context.POWER_SERVICE);
                     mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MAIL_SERVICE");
                     mWakeLock.acquire();
-                    log("+WAKE LOCK ACQUIRED: " + theTimeNow());
+                    log("+WAKE LOCK ACQUIRED: " + theTimeNow() + " for " + alarmOwner(id));
                 }
                 mWakeLocks.put(id, true);
              }
@@ -1287,7 +1287,7 @@ public class SyncManager extends Service implements Runnable {
                         mWakeLock.release();
                     }
                     mWakeLock = null;
-                    log("+WAKE LOCK RELEASED: " + theTimeNow());
+                    log("+WAKE LOCK RELEASED: " + theTimeNow() + " for " + alarmOwner(id));
                 } else {
                 }
             }
