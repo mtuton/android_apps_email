@@ -244,7 +244,9 @@ public class SyncManager extends Service implements Runnable {
     // Receiver of connectivity broadcasts
     private ConnectivityReceiver mConnectivityReceiver = null;
     private ConnectivityReceiver mBackgroundDataSettingReceiver = null;
+    private ConnectivityReceiver mAutoSyncSettingReceiver = null;
     private volatile boolean mBackgroundData = true;
+    private volatile boolean mMasterAutoSync = true;
 
     // The callback sent in from the UI using setCallback
     private IEmailServiceCallback mCallback;
@@ -1293,6 +1295,24 @@ public class SyncManager extends Service implements Runnable {
             }
         }
     }
+    
+    private void releaseWakeLocks() {
+        // Release the wake lock, if we have one
+        synchronized (mWakeLocks) {
+            if (mWakeLock != null) {
+            	//log("Releasing our wake lock");
+                mWakeLock.release();
+                mWakeLock = null;
+            }
+        }    	
+    }
+    
+    static public void releaseAllWakeLocks() {
+        SyncManager syncManager = INSTANCE;
+        if (syncManager != null) {
+            syncManager.releaseWakeLocks();
+        }
+    }
 
     static public String alarmOwner(long id) {
         if (id == SYNC_MANAGER_ID) {
@@ -1597,16 +1617,14 @@ public class SyncManager extends Service implements Runnable {
                         kick("disconnected");
                     }
                 }
-            } else if (intent.getAction().equals(
-            		ConnectivityManager.ACTION_BACKGROUND_DATA_SETTING_CHANGED) ||
-            		intent.getAction().equals(
-            				SYNC_CONN_STATUS_CHANGE)) {
+            } else if (intent.getAction().equals(ConnectivityManager.ACTION_BACKGROUND_DATA_SETTING_CHANGED) || 
+            		   intent.getAction().equals(SYNC_CONN_STATUS_CHANGE)) {
                 ConnectivityManager cm = (ConnectivityManager)SyncManager.this
                     .getSystemService(Context.CONNECTIVITY_SERVICE);
                 mBackgroundData = cm.getBackgroundDataSetting();
-                boolean masterAutoSync = ContentResolver.getMasterSyncAutomatically();
+                mMasterAutoSync = ContentResolver.getMasterSyncAutomatically();
                 // If background data is now on, we want to kick SyncManager
-                if (mBackgroundData && masterAutoSync) {
+                if (mBackgroundData && mMasterAutoSync) {
                     kick("background data on");
                     log("Background data on; restart syncs");
                 // Otherwise, stop all syncs
@@ -1907,13 +1925,14 @@ public class SyncManager extends Service implements Runnable {
                 registerReceiver(mBackgroundDataSettingReceiver, new IntentFilter(
                         ConnectivityManager.ACTION_BACKGROUND_DATA_SETTING_CHANGED));
                 
-                registerReceiver(mBackgroundDataSettingReceiver, new IntentFilter(
-                        SYNC_CONN_STATUS_CHANGE));
+                mAutoSyncSettingReceiver = new ConnectivityReceiver();
+                registerReceiver(mAutoSyncSettingReceiver, new IntentFilter(SYNC_CONN_STATUS_CHANGE));
                 // Save away the current background data setting; we'll keep track of it with the
                 // receiver we just registered
                 ConnectivityManager cm = (ConnectivityManager)getSystemService(
                         Context.CONNECTIVITY_SERVICE);
                 mBackgroundData = cm.getBackgroundDataSetting();
+                mMasterAutoSync = ContentResolver.getMasterSyncAutomatically();
 
                 // See if any settings have changed while we weren't running...
                 checkPIMSyncSettings();
@@ -1937,6 +1956,10 @@ public class SyncManager extends Service implements Runnable {
                             if (nextWait > 10*SECONDS) {
                                 log("Next awake in " + nextWait / 1000 + "s: " + mNextWaitReason);
                                 runAsleep(SYNC_MANAGER_ID, nextWait + (3*SECONDS));
+                            }
+                            if (!(mBackgroundData && mMasterAutoSync)) {
+                            	log("Background data or auto-sync disabled, releasing all wake locks");
+                            	releaseWakeLocks();
                             }
                             wait(nextWait);
                         }
@@ -1972,11 +1995,18 @@ public class SyncManager extends Service implements Runnable {
                 stopServiceThreads();
 
                 // Stop receivers
-                if (mConnectivityReceiver != null) {
-                    unregisterReceiver(mConnectivityReceiver);
-                }
-                if (mBackgroundDataSettingReceiver != null) {
-                    unregisterReceiver(mBackgroundDataSettingReceiver);
+                try {
+	                if (mConnectivityReceiver != null) {
+	                    unregisterReceiver(mConnectivityReceiver);
+	                }
+	                if (mBackgroundDataSettingReceiver != null) {
+	                    unregisterReceiver(mBackgroundDataSettingReceiver);
+	                }
+	                if (mAutoSyncSettingReceiver != null) {
+	                	unregisterReceiver(mAutoSyncSettingReceiver);
+	                }
+                } catch (IllegalArgumentException e) {
+                	// thrown if a receiver isn't registered
                 }
 
                 // Unregister observers
@@ -2019,6 +2049,7 @@ public class SyncManager extends Service implements Runnable {
                 // Release our wake lock, if we have one
                 synchronized (mWakeLocks) {
                     if (mWakeLock != null) {
+                    	log("Releasing our wake lock");
                         mWakeLock.release();
                         mWakeLock = null;
                     }
@@ -2094,7 +2125,7 @@ public class SyncManager extends Service implements Runnable {
 
                     // If background data is off, we only sync Outbox
                     // Manual syncs are initiated elsewhere, so they will continue to be respected
-                    if (!(mBackgroundData && masterAutoSync) && type != Mailbox.TYPE_OUTBOX) {
+                    if (!(mBackgroundData && mMasterAutoSync) && type != Mailbox.TYPE_OUTBOX) {
                         continue;
                     }
 
