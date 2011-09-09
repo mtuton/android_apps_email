@@ -1753,11 +1753,12 @@ public class SyncManager extends Service implements Runnable {
                 // We'll set an alarm just in case we don't get notified (bugs happen)
                 synchronized (sConnectivityLock) {
                     runAsleep(SYNC_MANAGER_ID, CONNECTIVITY_WAIT_TIME+5*SECONDS);
+                    releaseWakeLocks();		// force a release of all wake locks as runAsleep doesn't always succeed and keeps the device awake
                     try {
-                        log("Connectivity lock..." + theTimeNow());
+                        log("Connectivity: no connection, waiting ..." + theTimeNow());
                         sConnectivityHold = true;
                         sConnectivityLock.wait(CONNECTIVITY_WAIT_TIME);
-                        log("Connectivity lock released..." + theTimeNow());
+                        log("Connectivity: no connection, trying again..." + theTimeNow());
                     } catch (InterruptedException e) {
                         // This is fine; we just go around the loop again
                     } finally {
