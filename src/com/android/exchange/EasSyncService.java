@@ -1757,7 +1757,7 @@ public class EasSyncService extends AbstractSyncService {
 
             // If we've waited 10 seconds or more, just ping with whatever boxes are ready
             // But use a shorter than normal heartbeat
-            boolean forcePing = false; // !notReadyMailboxes.isEmpty() && (pingWaitCount > 5);
+            boolean forcePing = !notReadyMailboxes.isEmpty() && (pingWaitCount > 5);
 
             if ((canPushCount > 0) && ((canPushCount == pushCount) || forcePing)) {
                 // If all pingable boxes are ready for push, send Ping to the server
@@ -1860,7 +1860,7 @@ public class EasSyncService extends AbstractSyncService {
                         throw e;
                     }
                 }
-/*            } else if (forcePing) {
+            } else if (forcePing) {
                 // In this case, there aren't any boxes that are pingable, but there are boxes
                 // waiting (for IOExceptions)
                 userLog("pingLoop waiting 60s for any pingable boxes");
@@ -1870,7 +1870,7 @@ public class EasSyncService extends AbstractSyncService {
                 // TODO Change sleep to wait and use notify from SyncManager when a sync ends
                 sleep(2*SECONDS, false);
                 pingWaitCount++;
-                userLog("pingLoop waited 2s for: ", (pushCount - canPushCount), " box(es)");*/
+                userLog("pingLoop waited 2s for: ", (pushCount - canPushCount), " box(es)");
             } else if (uninitCount > 0) {
                 // In this case, we're doing an initial sync of at least one mailbox.  Since this
                 // is typically a one-time case, I'm ok with trying again every 10 seconds until
