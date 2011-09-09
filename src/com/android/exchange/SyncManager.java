@@ -124,7 +124,7 @@ public class SyncManager extends Service implements Runnable {
     private static final int MINUTES = 60*SECONDS;
     private static final int ONE_DAY_MINUTES = 1440;
 
-    private static final int SYNC_MANAGER_HEARTBEAT_TIME = 15*MINUTES;
+    private static final int SYNC_MANAGER_HEARTBEAT_TIME = 60*MINUTES;
     private static final int CONNECTIVITY_WAIT_TIME = 60*MINUTES;
 
     // Sync hold constants for services with transient errors
@@ -1275,6 +1275,7 @@ public class SyncManager extends Service implements Runnable {
                     log("+WAKE LOCK ACQUIRED: " + theTimeNow() + " for " + alarmOwner(id));
                 }
                 mWakeLocks.put(id, true);
+                log("+mWakeLock added: " + mWakeLocks);
              }
         }
     }
@@ -1291,6 +1292,7 @@ public class SyncManager extends Service implements Runnable {
                     mWakeLock = null;
                     log("+WAKE LOCK RELEASED: " + theTimeNow() + " for " + alarmOwner(id));
                 } else {
+                	log("+mWakeLocks remaining: " + mWakeLocks);
                 }
             }
         }
@@ -1353,7 +1355,7 @@ public class SyncManager extends Service implements Runnable {
 
                 AlarmManager alarmManager = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
                 alarmManager.set(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + millis, pi);
-                //log("+Alarm set for " + alarmOwner(id) + ", " + millis/1000 + "s");
+                log("+Alarm set for " + alarmOwner(id) + ", " + millis/SECONDS + "s");
             }
         }
     }
@@ -1378,6 +1380,7 @@ public class SyncManager extends Service implements Runnable {
 
     static public void runAsleep(long id, long millis) {
         SyncManager syncManager = INSTANCE;
+        log("+runAsleep(" + millis/MINUTES + "m) for " + alarmOwner(id));
         if (syncManager != null) {
             syncManager.setAlarm(id, millis);
             syncManager.releaseWakeLock(id);
