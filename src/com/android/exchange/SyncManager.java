@@ -1302,7 +1302,7 @@ public class SyncManager extends Service implements Runnable {
         // Release the wake lock, if we have one
         synchronized (mWakeLocks) {
             if (mWakeLock != null) {
-            	//log("Releasing our wake lock");
+            	log("+WAKE LOCK RELEASED: " + theTimeNow() + " for EVERYTHING");
                 mWakeLock.release();
                 mWakeLock = null;
             }
