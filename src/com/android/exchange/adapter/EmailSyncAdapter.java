@@ -56,6 +56,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.HashMap;
 import java.util.TimeZone;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -93,6 +94,7 @@ public class EmailSyncAdapter extends AbstractSyncAdapter {
     boolean mIsLooping = false;
     
     ArrayList<String> mimeAtts;
+    HashMap<String,String> mimeAttsContentTypes;
 
     // These are used when parsing MIME messages
     private StringBuffer textBody;
@@ -153,6 +155,7 @@ public class EmailSyncAdapter extends AbstractSyncAdapter {
         public void addData (Message msg) throws IOException {
             ArrayList<Attachment> atts = new ArrayList<Attachment>();
             mimeAtts = new ArrayList<String>();
+            mimeAttsContentTypes = new HashMap<String,String>();
             textBody = new StringBuffer();
             htmlBody = new StringBuffer();
 
@@ -249,11 +252,17 @@ public class EmailSyncAdapter extends AbstractSyncAdapter {
 
             if (atts.size() > 0 && mimeAtts != null) {
                 for(Attachment att : atts) {
+                	//userLog("EmailSyncAdapter: ", "att       : " + att.toString());
                     for (String contentId : mimeAtts) {
+                    	//userLog("EmailSyncAdapter: ", "contentId : " + contentId);
                         if (contentId == null)
                             continue;
 
-                        if (att.mFileName != null && contentId.contains(att.mFileName))
+                        String contentType = mimeAttsContentTypes.get(contentId);
+                        if (contentType == null)
+                        	continue;
+
+                        if (att.mFileName != null && contentType.contains(att.mFileName)) //contentId.contains(att.mFileName))
                             att.mContentId = contentId;
                     }
                 }
@@ -266,7 +275,9 @@ public class EmailSyncAdapter extends AbstractSyncAdapter {
                 for (int i=0; i<multipart.getCount(); ++i) {
                     BodyPart part = multipart.getBodyPart(i);
                     
-                    userLog("parseMimeBody() mimeType: " + part.getMimeType());
+                    //userLog("parseMimeBody() mimeType   : " + part.getMimeType());
+                    //userLog("parseMimeBody() contentId  : " + part.getContentId());
+                    //userLog("parseMimeBody() contentType: " + part.getContentType());
 
                     if (part.isMimeType("text/plain"))
                         textBody.append(MimeUtility.getTextFromPart(part));
@@ -276,8 +287,10 @@ public class EmailSyncAdapter extends AbstractSyncAdapter {
                     	parseMimeBody((MimeMultipart)part.getBody());
                     else if (part.isMimeType("multipart/alternative"))
                         parseMimeBody((MimeMultipart)part.getBody());
-                    else
+                    else {
                         mimeAtts.add(part.getContentId());
+                        mimeAttsContentTypes.put(part.getContentId(), part.getContentType());
+                    }
                 }
             }
             catch (MessagingException e) {}

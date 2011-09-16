@@ -1291,6 +1291,11 @@ public class MessageView extends Activity implements OnClickListener {
             }
             boolean htmlChanged = false;
             for (Attachment attachment : attachments) {
+            	//Log.d("MessageView.onPostExecute", "mContentId : " + attachment.mContentId);
+            	//Log.d("MessageView.onPostExecute", "mContentUri: " + attachment.mContentUri);
+            	//Log.d("MessageView.onPostExecute", "mFileName  : " + attachment.mFileName);
+            	//Log.d("MessageView.onPostExecute", "toString   : " + attachment.toString());
+            	
                 if (mHtmlTextRaw != null && attachment.mContentId != null
                         && attachment.mContentUri != null) {
                     // for html body, replace CID for inline images
@@ -1299,6 +1304,7 @@ public class MessageView extends Activity implements OnClickListener {
                         "\\s+(?i)src=\"cid(?-i):\\Q" + attachment.mContentId + "\\E\"";
                     String srcContentUri = " src=\"" + attachment.mContentUri + "\"";
                     mHtmlTextRaw = mHtmlTextRaw.replaceAll(contentIdRe, srcContentUri);
+                    //Log.d("MessageView.onPostExecute", mHtmlTextRaw);
                     htmlChanged = true;
                 } else {
                     addAttachment(attachment);
