@@ -1857,6 +1857,7 @@ public class EasSyncService extends AbstractSyncService {
                         // internal error, so let's not throw an exception (which leads to delays)
                         // but rather simply run through the loop again
                     } else {
+                    	SyncManager.releaseAllWakeLocks(); // ensure that all wake locks are released
                         throw e;
                     }
                 }
