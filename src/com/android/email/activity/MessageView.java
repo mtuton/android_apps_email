@@ -400,6 +400,7 @@ public class MessageView extends Activity implements OnClickListener {
         mMessageContentView.getSettings().setBlockNetworkLoads(true);
         mMessageContentView.getSettings().setSupportZoom(true);
         mMessageContentView.getSettings().setBuiltInZoomControls(true);
+        mMessageContentView.getSettings().setDefaultZoom(WebSettings.ZoomDensity.FAR);
         // mMessageContentView.getSettings().setDisplayZoomControls(false); // needs API level 11 (Android 3.0)
         mMessageContentView.setWebViewClient(new CustomWebViewClient());
 
