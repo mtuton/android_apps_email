@@ -893,9 +893,11 @@ public class EasSyncService extends AbstractSyncService {
         Message msg = Message.restoreMessageWithId(mContext, att.mMessageKey);
         doProgressCallback(msg.mId, att.mId, 0);
 
+        //userLog("EasSyncService.getAttachment() called: " + att.mFileName);
+
         String cmd = "GetAttachment&AttachmentName=" + att.mLocation;
         HttpResponse res = sendHttpClientPost(cmd, null, COMMAND_TIMEOUT);
-
+        
         int status = res.getStatusLine().getStatusCode();
         if (status == HttpStatus.SC_OK) {
             HttpEntity e = res.getEntity();
@@ -1819,6 +1821,10 @@ public class EasSyncService extends AbstractSyncService {
                         mExitStatus = EXIT_LOGIN_FAILURE;
                         userLog("Authorization error during Ping: ", code);
                         throw new IOException();
+                    } else if (code == HttpStatus.SC_INTERNAL_SERVER_ERROR) {
+                    	mExitStatus = EXIT_EXCEPTION;
+                    	userLog("Ping returned server error");
+                    	throw new IOException();
                     }
                 } catch (IOException e) {
                     String message = e.getMessage();
@@ -2030,7 +2036,7 @@ public class EasSyncService extends AbstractSyncService {
                 mExitStatus = EXIT_DONE;
                 return;
             }
-
+            
             // Now, handle various requests
             while (true) {
                 Request req = null;

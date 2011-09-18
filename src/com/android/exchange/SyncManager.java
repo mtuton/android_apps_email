@@ -2310,14 +2310,16 @@ public class SyncManager extends Service implements Runnable {
         if (msg == null) {
             return;
         }
-        long mailboxId = msg.mMailboxKey;
-        AbstractSyncService service = syncManager.mServiceMap.get(mailboxId);
+        synchronized (sSyncLock) {
+            long mailboxId = msg.mMailboxKey;
+            AbstractSyncService service = syncManager.mServiceMap.get(mailboxId);
 
-        if (service == null) {
-            service = startManualSync(mailboxId, SYNC_SERVICE_PART_REQUEST, req);
-            kick("part request");
-        } else {
-            service.addRequest(req);
+            if (service == null) {
+                service = startManualSync(mailboxId, SYNC_SERVICE_PART_REQUEST, req);
+                kick("part request");
+            } else {
+                service.addRequest(req);
+            }
         }
     }
 
