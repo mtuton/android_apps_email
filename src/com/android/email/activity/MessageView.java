@@ -396,11 +396,11 @@ public class MessageView extends Activity implements OnClickListener {
         mMessageContentView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
         mMessageContentView.getSettings().setRenderPriority(WebSettings.RenderPriority.HIGH);
         //mMessageContentView.getSettings().setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
-        mMessageContentView.getSettings().setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
+        //mMessageContentView.getSettings().setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
         mMessageContentView.getSettings().setBlockNetworkLoads(true);
         mMessageContentView.getSettings().setSupportZoom(true);
         mMessageContentView.getSettings().setBuiltInZoomControls(true);
-        mMessageContentView.getSettings().setDefaultZoom(WebSettings.ZoomDensity.FAR);
+        mMessageContentView.getSettings().setDefaultZoom(WebSettings.ZoomDensity.MEDIUM);
         // mMessageContentView.getSettings().setDisplayZoomControls(false); // needs API level 11 (Android 3.0)
         mMessageContentView.setWebViewClient(new CustomWebViewClient());
 
