@@ -128,7 +128,7 @@ public class SyncManager extends Service implements Runnable {
     private static final int CONNECTIVITY_WAIT_TIME = 60*MINUTES;
 
     // Sync hold constants for services with transient errors
-    private static final int HOLD_DELAY_MAXIMUM = 30*MINUTES;
+    private static final int HOLD_DELAY_MAXIMUM = 35*MINUTES;
 
     // Reason codes when SyncManager.kick is called (mainly for debugging)
     // UI has changed data, requiring an upsync of changes
@@ -878,7 +878,7 @@ public class SyncManager extends Service implements Runnable {
     /*package*/ class SyncError {
         int reason;
         boolean fatal = false;
-        long holdDelay = 5*MINUTES;
+        long holdDelay = 10*MINUTES;
         long holdEndTime = System.currentTimeMillis() + holdDelay;
 
         SyncError(int _reason, boolean _fatal) {
@@ -887,11 +887,11 @@ public class SyncManager extends Service implements Runnable {
         }
 
         /**
-         * We increase the holdDelay by 5 minutes through to 15 minutes
+         * We increase the holdDelay by 5 minutes through to 30 minutes
          */
         void escalate() {
         	if (holdDelay < HOLD_DELAY_MAXIMUM) {
-        		holdDelay += 5*MINUTES;
+        		holdDelay += 8*MINUTES;
         	}
         	else if (holdDelay > HOLD_DELAY_MAXIMUM) {
                 holdDelay = HOLD_DELAY_MAXIMUM;
@@ -2455,10 +2455,10 @@ public class SyncManager extends Service implements Runnable {
                     if (m == null) return;
                     if (syncError != null) {
                         syncError.escalate();
-                        log(m.mDisplayName + " held for " + syncError.holdDelay + "ms");
+                        log(m.mDisplayName + " held for " + syncError.holdDelay / SECONDS + "s");
                     } else {
                         errorMap.put(mailboxId, syncManager.new SyncError(exitStatus, false));
-                        log(m.mDisplayName + " added to syncErrorMap, hold for 5 minutes");
+                        log(m.mDisplayName + " added to syncErrorMap, hold for 10 minutes");
                     }
                     break;
                 // These errors are not retried automatically

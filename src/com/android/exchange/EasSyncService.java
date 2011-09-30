@@ -173,8 +173,8 @@ public class EasSyncService extends AbstractSyncService {
 
     // Fallbacks (in minutes) for ping loop failures
     static private final int MAX_PING_FAILURES = 1;
-    static private final int PING_FALLBACK_INBOX = 5;
-    static private final int PING_FALLBACK_PIM = 25;
+    static private final int PING_FALLBACK_INBOX = 25;
+    static private final int PING_FALLBACK_PIM = 60;
 
     // MSFT's custom HTTP result code indicating the need to provision
     static private final int HTTP_NEED_PROVISIONING = 449;
@@ -1695,6 +1695,8 @@ public class EasSyncService extends AbstractSyncService {
             int canPushCount = 0;
             // Count of uninitialized boxes
             int uninitCount = 0;
+            // Count number of forcePings
+            int forcePingCount = 0;
 
             Serializer s = new Serializer();
             Cursor c = mContentResolver.query(Mailbox.CONTENT_URI, Mailbox.CONTENT_PROJECTION,
@@ -1868,6 +1870,11 @@ public class EasSyncService extends AbstractSyncService {
                     }
                 }
             } else if (forcePing) {
+            	if (forcePingCount++ > 5)
+            	{
+            		// failed to force a ping for 5 minutes we then throw an IOException 
+            		throw new IOException("forcePing limit reached");
+            	}
                 // In this case, there aren't any boxes that are pingable, but there are boxes
                 // waiting (for IOExceptions)
                 userLog("pingLoop waiting 60s for any pingable boxes");
