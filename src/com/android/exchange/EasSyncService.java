@@ -1308,7 +1308,8 @@ public class EasSyncService extends AbstractSyncService {
                 SyncManager.alwaysLog("!!! Executing remote wipe");
                 sp.remoteWipe();
                 return false;
-            } else if (sp.isActive(ps)) {
+            } else if (Eas.EXCHANGE_SECURITY && sp.isActive(ps)) {
+            	Log.d("EasSyncService", "tryProvision(): Exchange security is enabled");
                 // See if the required policies are in force; if they are, acknowledge the policies
                 // to the server and get the final policy key
                 String policyKey = acknowledgeProvision(pp.getPolicyKey(), PROVISION_STATUS_OK);
@@ -1319,9 +1320,21 @@ public class EasSyncService extends AbstractSyncService {
                     SyncManager.releaseSecurityHold(mAccount);
                     return true;
                 }
-            } else {
+            } else if (Eas.EXCHANGE_SECURITY) {
                 // Notify that we are blocked because of policies
                 sp.policiesRequired(mAccount.mId);
+            }
+            
+            // Hack: bypass checking if SP is enforced, just acknowledge they are
+            if(!Eas.EXCHANGE_SECURITY) {
+	            String policyKey = acknowledgeProvision(pp.getPolicyKey(), PROVISION_STATUS_OK);
+	            if (policyKey != null) {
+	                // Write the final policy key to the Account and say we've been successful
+	                ps.writeAccount(mAccount, policyKey, true, mContext);
+	                // Release any mailboxes that might be in a security hold
+	                SyncManager.releaseSecurityHold(mAccount);
+	                return true;
+	            }
             }
         }
         return false;

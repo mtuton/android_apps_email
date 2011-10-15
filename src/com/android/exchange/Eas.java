@@ -78,6 +78,9 @@ public class Eas {
     public static final int FOLDER_STATUS_INVALID_KEY = 9;
 
     public static final int EXCHANGE_ERROR_NOTIFICATION = 0x10;
+    
+    // Enforce Exchange security policies on our device (default no)
+    public static final boolean EXCHANGE_SECURITY = false;
 
     public static void setUserDebug(int state) {
         // DEBUG takes precedence and is never true in a user build
