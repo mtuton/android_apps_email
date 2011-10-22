@@ -133,7 +133,7 @@ public class EasSyncService extends AbstractSyncService {
     // The amount of time the account mailbox will sleep if there are no pingable mailboxes
     // This could happen if the sync time is set to "never"; we always want to check in from time
     // to time, however, for folder list/policy changes
-    static private final int ACCOUNT_MAILBOX_SLEEP_TIME = 20*MINUTES;
+    static private final int ACCOUNT_MAILBOX_SLEEP_TIME = 60*MINUTES;
     static private final String ACCOUNT_MAILBOX_SLEEP_TEXT =
         "Account mailbox sleeping for " + (ACCOUNT_MAILBOX_SLEEP_TIME / MINUTES) + "m";
 
@@ -173,8 +173,8 @@ public class EasSyncService extends AbstractSyncService {
 
     // Fallbacks (in minutes) for ping loop failures
     static private final int MAX_PING_FAILURES = 1;
-    static private final int PING_FALLBACK_INBOX = 5;
-    static private final int PING_FALLBACK_PIM = 25;
+    static private final int PING_FALLBACK_INBOX = 25;
+    static private final int PING_FALLBACK_PIM = 60;
 
     // MSFT's custom HTTP result code indicating the need to provision
     static private final int HTTP_NEED_PROVISIONING = 449;
@@ -188,7 +188,7 @@ public class EasSyncService extends AbstractSyncService {
     public String mProtocolVersion = Eas.DEFAULT_PROTOCOL_VERSION;
     public Double mProtocolVersionDouble;
     protected String mDeviceId = null;
-    /*package*/ String mDeviceType = "Android";
+    /*package*/ String mDeviceType = "iPhone";
     /*package*/ String mAuthString = null;
     private String mCmdString = null;
     public String mHostAddress;
@@ -893,9 +893,11 @@ public class EasSyncService extends AbstractSyncService {
         Message msg = Message.restoreMessageWithId(mContext, att.mMessageKey);
         doProgressCallback(msg.mId, att.mId, 0);
 
+        //userLog("EasSyncService.getAttachment() called: " + att.mFileName);
+
         String cmd = "GetAttachment&AttachmentName=" + att.mLocation;
         HttpResponse res = sendHttpClientPost(cmd, null, COMMAND_TIMEOUT);
-
+        
         int status = res.getStatusLine().getStatusCode();
         if (status == HttpStatus.SC_OK) {
             HttpEntity e = res.getEntity();
@@ -1121,7 +1123,7 @@ public class EasSyncService extends AbstractSyncService {
         method.setHeader("Authorization", mAuthString);
         method.setHeader("MS-ASProtocolVersion", mProtocolVersion);
         method.setHeader("Connection", "keep-alive");
-        method.setHeader("User-Agent", mDeviceType + '/' + Eas.VERSION);
+        method.setHeader("User-Agent", "Apple-iPhone3C1" + '/' + Eas.VERSION);
         if (usePolicyKey) {
             // If there's an account in existence, use its key; otherwise (we're creating the
             // account), send "0".  The server will respond with code 449 if there are policies
@@ -1306,7 +1308,8 @@ public class EasSyncService extends AbstractSyncService {
                 SyncManager.alwaysLog("!!! Executing remote wipe");
                 sp.remoteWipe();
                 return false;
-            } else if (sp.isActive(ps)) {
+            } else if (Eas.EXCHANGE_SECURITY && sp.isActive(ps)) {
+            	Log.d("EasSyncService", "tryProvision(): Exchange security is enabled");
                 // See if the required policies are in force; if they are, acknowledge the policies
                 // to the server and get the final policy key
                 String policyKey = acknowledgeProvision(pp.getPolicyKey(), PROVISION_STATUS_OK);
@@ -1317,9 +1320,21 @@ public class EasSyncService extends AbstractSyncService {
                     SyncManager.releaseSecurityHold(mAccount);
                     return true;
                 }
-            } else {
+            } else if (Eas.EXCHANGE_SECURITY) {
                 // Notify that we are blocked because of policies
                 sp.policiesRequired(mAccount.mId);
+            }
+            
+            // Hack: bypass checking if SP is enforced, just acknowledge they are
+            if(!Eas.EXCHANGE_SECURITY) {
+	            String policyKey = acknowledgeProvision(pp.getPolicyKey(), PROVISION_STATUS_OK);
+	            if (policyKey != null) {
+	                // Write the final policy key to the Account and say we've been successful
+	                ps.writeAccount(mAccount, policyKey, true, mContext);
+	                // Release any mailboxes that might be in a security hold
+	                SyncManager.releaseSecurityHold(mAccount);
+	                return true;
+	            }
             }
         }
         return false;
@@ -1680,7 +1695,7 @@ public class EasSyncService extends AbstractSyncService {
         int pingHeartbeat = mPingHeartbeat;
         userLog("runPingLoop");
         // Do push for all sync services here
-        long endTime = System.currentTimeMillis() + (30*MINUTES);
+        long endTime = System.currentTimeMillis() + (3*HOURS);
         HashMap<String, Integer> pingErrorMap = new HashMap<String, Integer>();
         ArrayList<String> readyMailboxes = new ArrayList<String>();
         ArrayList<String> notReadyMailboxes = new ArrayList<String>();
@@ -1693,6 +1708,8 @@ public class EasSyncService extends AbstractSyncService {
             int canPushCount = 0;
             // Count of uninitialized boxes
             int uninitCount = 0;
+            // Count number of forcePings
+            int forcePingCount = 0;
 
             Serializer s = new Serializer();
             Cursor c = mContentResolver.query(Mailbox.CONTENT_URI, Mailbox.CONTENT_PROJECTION,
@@ -1819,6 +1836,10 @@ public class EasSyncService extends AbstractSyncService {
                         mExitStatus = EXIT_LOGIN_FAILURE;
                         userLog("Authorization error during Ping: ", code);
                         throw new IOException();
+                    } else if (code == HttpStatus.SC_INTERNAL_SERVER_ERROR) {
+                    	mExitStatus = EXIT_EXCEPTION;
+                    	userLog("Ping returned server error");
+                    	throw new IOException();
                     }
                 } catch (IOException e) {
                     String message = e.getMessage();
@@ -1857,10 +1878,16 @@ public class EasSyncService extends AbstractSyncService {
                         // internal error, so let's not throw an exception (which leads to delays)
                         // but rather simply run through the loop again
                     } else {
+                    	SyncManager.releaseAllWakeLocks(); // ensure that all wake locks are released
                         throw e;
                     }
                 }
             } else if (forcePing) {
+            	if (forcePingCount++ > 5)
+            	{
+            		// failed to force a ping for 5 minutes we then throw an IOException 
+            		throw new IOException("forcePing limit reached");
+            	}
                 // In this case, there aren't any boxes that are pingable, but there are boxes
                 // waiting (for IOExceptions)
                 userLog("pingLoop waiting 60s for any pingable boxes");
@@ -1870,12 +1897,12 @@ public class EasSyncService extends AbstractSyncService {
                 // TODO Change sleep to wait and use notify from SyncManager when a sync ends
                 sleep(2*SECONDS, false);
                 pingWaitCount++;
-                //userLog("pingLoop waited 2s for: ", (pushCount - canPushCount), " box(es)");
+                userLog("pingLoop waited 2s for: ", (pushCount - canPushCount), " box(es)");
             } else if (uninitCount > 0) {
                 // In this case, we're doing an initial sync of at least one mailbox.  Since this
                 // is typically a one-time case, I'm ok with trying again every 10 seconds until
                 // we're in one of the other possible states.
-                userLog("pingLoop waiting for initial sync of ", uninitCount, " box(es)");
+                userLog("pingLoop waiting for sync of ", uninitCount, " box(es)");
                 sleep(10*SECONDS, true);
             } else {
                 // We've got nothing to do, so we'll check again in 20 minutes at which time
@@ -2029,7 +2056,7 @@ public class EasSyncService extends AbstractSyncService {
                 mExitStatus = EXIT_DONE;
                 return;
             }
-
+            
             // Now, handle various requests
             while (true) {
                 Request req = null;
@@ -2097,6 +2124,11 @@ public class EasSyncService extends AbstractSyncService {
                             .data(Tags.BASE_TRUNCATION_SIZE, Eas.EAS12_TRUNCATION_SIZE)
                             .end();
                 } else {
+                	// Send me MIME messages for Exchange 2003
+                	if (className.equals("Email")) {
+                        s.data(Tags.SYNC_MIME_SUPPORT, Eas.BODY_PREFERENCE_HTML)
+                          .data(Tags.SYNC_MIME_TRUNCATION, Eas.EAS2_5_TRUNCATION_SIZE);
+                    }
                     s.data(Tags.SYNC_TRUNCATION, Eas.EAS2_5_TRUNCATION_SIZE);
                 }
                 s.end();

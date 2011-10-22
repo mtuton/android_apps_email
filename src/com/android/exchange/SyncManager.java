@@ -96,6 +96,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  * The SyncManager handles all aspects of starting, maintaining, and stopping the various sync
@@ -122,11 +124,11 @@ public class SyncManager extends Service implements Runnable {
     private static final int MINUTES = 60*SECONDS;
     private static final int ONE_DAY_MINUTES = 1440;
 
-    private static final int SYNC_MANAGER_HEARTBEAT_TIME = 15*MINUTES;
-    private static final int CONNECTIVITY_WAIT_TIME = 10*MINUTES;
+    private static final int SYNC_MANAGER_HEARTBEAT_TIME = 60*MINUTES;
+    private static final int CONNECTIVITY_WAIT_TIME = 60*MINUTES;
 
     // Sync hold constants for services with transient errors
-    private static final int HOLD_DELAY_MAXIMUM = 4*MINUTES;
+    private static final int HOLD_DELAY_MAXIMUM = 35*MINUTES;
 
     // Reason codes when SyncManager.kick is called (mainly for debugging)
     // UI has changed data, requiring an upsync of changes
@@ -210,6 +212,11 @@ public class SyncManager extends Service implements Runnable {
     private EasSyncStatusObserver mSyncStatusObserver;
     private Object mStatusChangeListener;
     private EasAccountsUpdatedListener mAccountsUpdatedListener;
+    
+    /**
+     * String for the auto-sync changed Intent.  This isn't currently exposed by the API
+     */
+    public static String SYNC_CONN_STATUS_CHANGE = "com.android.sync.SYNC_CONN_STATUS_CHANGED";
 
     // Concurrent because CalendarSyncAdapter can modify the map during a wipe
     private ConcurrentHashMap<Long, CalendarObserver> mCalendarObservers =
@@ -237,7 +244,9 @@ public class SyncManager extends Service implements Runnable {
     // Receiver of connectivity broadcasts
     private ConnectivityReceiver mConnectivityReceiver = null;
     private ConnectivityReceiver mBackgroundDataSettingReceiver = null;
+    private ConnectivityReceiver mAutoSyncSettingReceiver = null;
     private volatile boolean mBackgroundData = true;
+    private volatile boolean mMasterAutoSync = true;
 
     // The callback sent in from the UI using setCallback
     private IEmailServiceCallback mCallback;
@@ -869,7 +878,7 @@ public class SyncManager extends Service implements Runnable {
     /*package*/ class SyncError {
         int reason;
         boolean fatal = false;
-        long holdDelay = 15*SECONDS;
+        long holdDelay = 10*MINUTES;
         long holdEndTime = System.currentTimeMillis() + holdDelay;
 
         SyncError(int _reason, boolean _fatal) {
@@ -878,11 +887,14 @@ public class SyncManager extends Service implements Runnable {
         }
 
         /**
-         * We double the holdDelay from 15 seconds through 4 mins
+         * We increase the holdDelay by 5 minutes through to 30 minutes
          */
         void escalate() {
-            if (holdDelay < HOLD_DELAY_MAXIMUM) {
-                holdDelay *= 2;
+        	if (holdDelay < HOLD_DELAY_MAXIMUM) {
+        		holdDelay += 8*MINUTES;
+        	}
+        	else if (holdDelay > HOLD_DELAY_MAXIMUM) {
+                holdDelay = HOLD_DELAY_MAXIMUM;
             }
             holdEndTime = System.currentTimeMillis() + holdDelay;
         }
@@ -1064,9 +1076,9 @@ public class SyncManager extends Service implements Runnable {
                 final String consistentDeviceId = Utility.getConsistentDeviceId(context);
                 if (consistentDeviceId != null) {
                     // Use different prefix from random IDs.
-                    id = "androidc" + consistentDeviceId;
+                    id = "Appl" + consistentDeviceId;
                 } else {
-                    id = "android" + System.currentTimeMillis();
+                    id = "Appl" + System.currentTimeMillis();
                 }
                 w.write(id);
                 w.close();
@@ -1245,6 +1257,13 @@ public class SyncManager extends Service implements Runnable {
         }
     }
 
+    // return a string that contains the date and time now (used in debugging)
+    private String theTimeNow() {
+    	SimpleDateFormat sdfDateTime = new SimpleDateFormat("HH:mm:ss");
+    	String result =  sdfDateTime.format(new Date(System.currentTimeMillis()));
+    	return result;
+    }
+
     private void acquireWakeLock(long id) {
         synchronized (mWakeLocks) {
             Boolean lock = mWakeLocks.get(id);
@@ -1253,13 +1272,14 @@ public class SyncManager extends Service implements Runnable {
                     PowerManager pm = (PowerManager)getSystemService(Context.POWER_SERVICE);
                     mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MAIL_SERVICE");
                     mWakeLock.acquire();
-                    //log("+WAKE LOCK ACQUIRED");
+                    log("+WAKE LOCK ACQUIRED: " + theTimeNow() + " for " + alarmOwner(id));
                 }
                 mWakeLocks.put(id, true);
+                log("+mWakeLock added: " + mWakeLocks);
              }
         }
     }
-
+    
     private void releaseWakeLock(long id) {
         synchronized (mWakeLocks) {
             Boolean lock = mWakeLocks.get(id);
@@ -1270,10 +1290,29 @@ public class SyncManager extends Service implements Runnable {
                         mWakeLock.release();
                     }
                     mWakeLock = null;
-                    //log("+WAKE LOCK RELEASED");
+                    log("+WAKE LOCK RELEASED: " + theTimeNow() + " for " + alarmOwner(id));
                 } else {
+                	log("+mWakeLocks remaining: " + mWakeLocks);
                 }
             }
+        }
+    }
+    
+    private void releaseWakeLocks() {
+        // Release the wake lock, if we have one
+        synchronized (mWakeLocks) {
+            if (mWakeLock != null) {
+            	log("+WAKE LOCK RELEASED: " + theTimeNow() + " for EVERYTHING");
+                mWakeLock.release();
+                mWakeLock = null;
+            }
+        }    	
+    }
+    
+    static public void releaseAllWakeLocks() {
+        SyncManager syncManager = INSTANCE;
+        if (syncManager != null) {
+            syncManager.releaseWakeLocks();
         }
     }
 
@@ -1316,7 +1355,7 @@ public class SyncManager extends Service implements Runnable {
 
                 AlarmManager alarmManager = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
                 alarmManager.set(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + millis, pi);
-                //log("+Alarm set for " + alarmOwner(id) + ", " + millis/1000 + "s");
+                log("+Alarm set for " + alarmOwner(id) + ", " + millis/SECONDS + "s");
             }
         }
     }
@@ -1341,6 +1380,7 @@ public class SyncManager extends Service implements Runnable {
 
     static public void runAsleep(long id, long millis) {
         SyncManager syncManager = INSTANCE;
+        log("+runAsleep(" + millis/MINUTES + "m) for " + alarmOwner(id));
         if (syncManager != null) {
             syncManager.setAlarm(id, millis);
             syncManager.releaseWakeLock(id);
@@ -1580,13 +1620,14 @@ public class SyncManager extends Service implements Runnable {
                         kick("disconnected");
                     }
                 }
-            } else if (intent.getAction().equals(
-                    ConnectivityManager.ACTION_BACKGROUND_DATA_SETTING_CHANGED)) {
+            } else if (intent.getAction().equals(ConnectivityManager.ACTION_BACKGROUND_DATA_SETTING_CHANGED) || 
+            		   intent.getAction().equals(SYNC_CONN_STATUS_CHANGE)) {
                 ConnectivityManager cm = (ConnectivityManager)SyncManager.this
                     .getSystemService(Context.CONNECTIVITY_SERVICE);
                 mBackgroundData = cm.getBackgroundDataSetting();
+                mMasterAutoSync = ContentResolver.getMasterSyncAutomatically();
                 // If background data is now on, we want to kick SyncManager
-                if (mBackgroundData) {
+                if (mBackgroundData && mMasterAutoSync) {
                     kick("background data on");
                     log("Background data on; restart syncs");
                 // Otherwise, stop all syncs
@@ -1711,15 +1752,16 @@ public class SyncManager extends Service implements Runnable {
                     waiting = true;
                     stopServiceThreads();
                 }
-                // Wait until a network is connected (or 10 mins), but let the device sleep
+                // Wait until a network is connected (or 60 mins), but let the device sleep
                 // We'll set an alarm just in case we don't get notified (bugs happen)
                 synchronized (sConnectivityLock) {
                     runAsleep(SYNC_MANAGER_ID, CONNECTIVITY_WAIT_TIME+5*SECONDS);
+                    releaseWakeLocks();		// force a release of all wake locks as runAsleep doesn't always succeed and keeps the device awake
                     try {
-                        log("Connectivity lock...");
+                        log("Connectivity: no connection, waiting ..." + theTimeNow());
                         sConnectivityHold = true;
                         sConnectivityLock.wait(CONNECTIVITY_WAIT_TIME);
-                        log("Connectivity lock released...");
+                        log("Connectivity: no connection, trying again..." + theTimeNow());
                     } catch (InterruptedException e) {
                         // This is fine; we just go around the loop again
                     } finally {
@@ -1886,11 +1928,15 @@ public class SyncManager extends Service implements Runnable {
                 mBackgroundDataSettingReceiver = new ConnectivityReceiver();
                 registerReceiver(mBackgroundDataSettingReceiver, new IntentFilter(
                         ConnectivityManager.ACTION_BACKGROUND_DATA_SETTING_CHANGED));
+                
+                mAutoSyncSettingReceiver = new ConnectivityReceiver();
+                registerReceiver(mAutoSyncSettingReceiver, new IntentFilter(SYNC_CONN_STATUS_CHANGE));
                 // Save away the current background data setting; we'll keep track of it with the
                 // receiver we just registered
                 ConnectivityManager cm = (ConnectivityManager)getSystemService(
                         Context.CONNECTIVITY_SERVICE);
                 mBackgroundData = cm.getBackgroundDataSetting();
+                mMasterAutoSync = ContentResolver.getMasterSyncAutomatically();
 
                 // See if any settings have changed while we weren't running...
                 checkPIMSyncSettings();
@@ -1914,6 +1960,10 @@ public class SyncManager extends Service implements Runnable {
                             if (nextWait > 10*SECONDS) {
                                 log("Next awake in " + nextWait / 1000 + "s: " + mNextWaitReason);
                                 runAsleep(SYNC_MANAGER_ID, nextWait + (3*SECONDS));
+                            }
+                            if (!(mBackgroundData && mMasterAutoSync)) {
+                            	log("Background data or auto-sync disabled, releasing all wake locks");
+                            	releaseWakeLocks();
                             }
                             wait(nextWait);
                         }
@@ -1949,11 +1999,18 @@ public class SyncManager extends Service implements Runnable {
                 stopServiceThreads();
 
                 // Stop receivers
-                if (mConnectivityReceiver != null) {
-                    unregisterReceiver(mConnectivityReceiver);
-                }
-                if (mBackgroundDataSettingReceiver != null) {
-                    unregisterReceiver(mBackgroundDataSettingReceiver);
+                try {
+	                if (mConnectivityReceiver != null) {
+	                    unregisterReceiver(mConnectivityReceiver);
+	                }
+	                if (mBackgroundDataSettingReceiver != null) {
+	                    unregisterReceiver(mBackgroundDataSettingReceiver);
+	                }
+	                if (mAutoSyncSettingReceiver != null) {
+	                	unregisterReceiver(mAutoSyncSettingReceiver);
+	                }
+                } catch (IllegalArgumentException e) {
+                	// thrown if a receiver isn't registered
                 }
 
                 // Unregister observers
@@ -1996,6 +2053,7 @@ public class SyncManager extends Service implements Runnable {
                 // Release our wake lock, if we have one
                 synchronized (mWakeLocks) {
                     if (mWakeLock != null) {
+                    	log("Releasing our wake lock");
                         mWakeLock.release();
                         mWakeLock = null;
                     }
@@ -2071,7 +2129,7 @@ public class SyncManager extends Service implements Runnable {
 
                     // If background data is off, we only sync Outbox
                     // Manual syncs are initiated elsewhere, so they will continue to be respected
-                    if (!mBackgroundData && type != Mailbox.TYPE_OUTBOX) {
+                    if (!(mBackgroundData && mMasterAutoSync) && type != Mailbox.TYPE_OUTBOX) {
                         continue;
                     }
 
@@ -2252,14 +2310,16 @@ public class SyncManager extends Service implements Runnable {
         if (msg == null) {
             return;
         }
-        long mailboxId = msg.mMailboxKey;
-        AbstractSyncService service = syncManager.mServiceMap.get(mailboxId);
+        synchronized (sSyncLock) {
+            long mailboxId = msg.mMailboxKey;
+            AbstractSyncService service = syncManager.mServiceMap.get(mailboxId);
 
-        if (service == null) {
-            service = startManualSync(mailboxId, SYNC_SERVICE_PART_REQUEST, req);
-            kick("part request");
-        } else {
-            service.addRequest(req);
+            if (service == null) {
+                service = startManualSync(mailboxId, SYNC_SERVICE_PART_REQUEST, req);
+                kick("part request");
+            } else {
+                service.addRequest(req);
+            }
         }
     }
 
@@ -2395,10 +2455,10 @@ public class SyncManager extends Service implements Runnable {
                     if (m == null) return;
                     if (syncError != null) {
                         syncError.escalate();
-                        log(m.mDisplayName + " held for " + syncError.holdDelay + "ms");
+                        log(m.mDisplayName + " held for " + syncError.holdDelay / SECONDS + "s");
                     } else {
                         errorMap.put(mailboxId, syncManager.new SyncError(exitStatus, false));
-                        log(m.mDisplayName + " added to syncErrorMap, hold for 15s");
+                        log(m.mDisplayName + " added to syncErrorMap, hold for 10 minutes");
                     }
                     break;
                 // These errors are not retried automatically

@@ -70,6 +70,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebSettings;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -148,6 +149,8 @@ public class MessageView extends Activity implements OnClickListener {
 
     private long mLoadAttachmentId;         // the attachment being saved/viewed
     private boolean mLoadAttachmentSave;    // if true, saving - if false, viewing
+    private boolean mLoadInlineImage;
+    private boolean mShowInlineImages;
     private String mLoadAttachmentName;     // the display name
 
     private java.text.DateFormat mDateFormat;
@@ -386,11 +389,19 @@ public class MessageView extends Activity implements OnClickListener {
         mMeetingNo.setOnClickListener(this);
         findViewById(R.id.invite_link).setOnClickListener(this);
 
-        mMessageContentView.setClickable(true);
-        mMessageContentView.setLongClickable(false);    // Conflicts with ScrollView, unfortunately
-        mMessageContentView.setVerticalScrollBarEnabled(false);
+        //mMessageContentView.setClickable(true);
+        //mMessageContentView.setLongClickable(false);    // Conflicts with ScrollView, unfortunately
+        //mMessageContentView.setVerticalScrollBarEnabled(false);
+        mMessageContentView.setVerticalScrollBarEnabled(true);
+        mMessageContentView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+        mMessageContentView.getSettings().setRenderPriority(WebSettings.RenderPriority.HIGH);
+        //mMessageContentView.getSettings().setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
+        //mMessageContentView.getSettings().setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
         mMessageContentView.getSettings().setBlockNetworkLoads(true);
-        mMessageContentView.getSettings().setSupportZoom(false);
+        mMessageContentView.getSettings().setSupportZoom(true);
+        mMessageContentView.getSettings().setBuiltInZoomControls(true);
+        mMessageContentView.getSettings().setDefaultZoom(WebSettings.ZoomDensity.MEDIUM);
+        // mMessageContentView.getSettings().setDisplayZoomControls(false); // needs API level 11 (Android 3.0)
         mMessageContentView.setWebViewClient(new CustomWebViewClient());
 
         mProgressDialog = new ProgressDialog(this);
@@ -740,6 +751,7 @@ public class MessageView extends Activity implements OnClickListener {
 
         mLoadAttachmentId = attachment.attachmentId;
         mLoadAttachmentSave = true;
+        mLoadInlineImage = false;
         mLoadAttachmentName = attachment.name;
 
         mController.loadAttachment(attachment.attachmentId, mMessageId, mMessage.mMailboxKey,
@@ -749,14 +761,31 @@ public class MessageView extends Activity implements OnClickListener {
     private void onViewAttachment(AttachmentInfo attachment) {
         mLoadAttachmentId = attachment.attachmentId;
         mLoadAttachmentSave = false;
+        mLoadInlineImage = false;
         mLoadAttachmentName = attachment.name;
 
         mController.loadAttachment(attachment.attachmentId, mMessageId, mMessage.mMailboxKey,
                 mAccountId, mControllerCallback);
     }
+    
+    private void onLoadInlineImage(AttachmentInfo attachment) {
+        mLoadAttachmentId = attachment.attachmentId;
+        mLoadInlineImage = true;
+        mLoadAttachmentName = attachment.name;
+        
+    	//Log.d("MessageView.onLoadInlineImage", "+Downloading inline image: " + attachment.attachmentId + ": " + attachment.name);
+        
+        mController.loadInlineAttachment(attachment.attachmentId, mMessageId, mMessage.mMailboxKey,
+                mAccountId, mControllerCallback);
+    }
 
     private void onShowPictures() {
-        if (mMessage != null) {
+    	//Log.d("MessageView", "-----------+ onShowPictures() called");
+    	
+    	mShowInlineImages = true;
+    	messageChanged();
+
+    	if (mMessage != null) {
             if (mMessageContentView != null) {
                 mMessageContentView.getSettings().setBlockNetworkLoads(false);
                 if (mHtmlTextWebView != null) {
@@ -1024,12 +1053,6 @@ public class MessageView extends Activity implements OnClickListener {
                         Email.UNACCEPTABLE_ATTACHMENT_VIEW_TYPES))) {
             attachmentView.setVisibility(View.GONE);
         }
-        if ((!MimeUtility.mimeTypeMatches(attachmentInfo.contentType,
-                Email.ACCEPTABLE_ATTACHMENT_DOWNLOAD_TYPES))
-                || (MimeUtility.mimeTypeMatches(attachmentInfo.contentType,
-                        Email.UNACCEPTABLE_ATTACHMENT_DOWNLOAD_TYPES))) {
-            attachmentDownload.setVisibility(View.GONE);
-        }
 
         if (attachmentInfo.size > Email.MAX_ATTACHMENT_DOWNLOAD_SIZE) {
             attachmentView.setVisibility(View.GONE);
@@ -1288,16 +1311,34 @@ public class MessageView extends Activity implements OnClickListener {
                 return;
             }
             boolean htmlChanged = false;
+            //Log.d("MessageView", "-----------+ LoadAttachmentsTask.onPostExecute() mShowInlineImages: " + mShowInlineImages);
             for (Attachment attachment : attachments) {
-                if (mHtmlTextRaw != null && attachment.mContentId != null
-                        && attachment.mContentUri != null) {
-                    // for html body, replace CID for inline images
-                    // Regexp which matches ' src="cid:contentId"'.
-                    String contentIdRe =
-                        "\\s+(?i)src=\"cid(?-i):\\Q" + attachment.mContentId + "\\E\"";
-                    String srcContentUri = " src=\"" + attachment.mContentUri + "\"";
-                    mHtmlTextRaw = mHtmlTextRaw.replaceAll(contentIdRe, srcContentUri);
-                    htmlChanged = true;
+            	//Log.d("MessageView.onPostExecute", "mContentId : " + attachment.mContentId);
+            	//Log.d("MessageView.onPostExecute", "mContentUri: " + attachment.mContentUri);
+            	//Log.d("MessageView.onPostExecute", "mFileName  : " + attachment.mFileName);
+            	//Log.d("MessageView.onPostExecute", "toString   : " + attachment.toString());
+
+            	if (mHtmlTextRaw != null && attachment.mContentId != null) {
+            		
+            		if (mShowInlineImages) {
+                    	// inline images not yet downloaded, download them now.
+            			AttachmentInfo att = new AttachmentInfo();
+                		att.attachmentId = attachment.mId;
+                		att.name = attachment.mFileName;
+
+                		onLoadInlineImage(att);
+            		}
+
+            		if (attachment.mContentUri != null) {
+	            		// for html body, replace CID for inline images
+	                    // Regexp which matches ' src="cid:contentId"'.
+	                    String contentIdRe =
+	                        "\\s+(?i)src=\"cid(?-i):\\Q" + attachment.mContentId + "\\E\"";
+	                    String srcContentUri = " src=\"" + attachment.mContentUri + "\"";
+	                    mHtmlTextRaw = mHtmlTextRaw.replaceAll(contentIdRe, srcContentUri);
+	                    //Log.d("MessageView.onPostExecute", mHtmlTextRaw);
+	                    htmlChanged = true;
+            		}
                 } else {
                     addAttachment(attachment);
                 }
@@ -1424,7 +1465,7 @@ public class MessageView extends Activity implements OnClickListener {
             hasImages = IMG_TAG_START_REGEX.matcher(text).find();
         }
 
-        mShowPicturesSection.setVisibility(hasImages ? View.VISIBLE : View.GONE);
+        mShowPicturesSection.setVisibility(hasImages && !mShowInlineImages ? View.VISIBLE : View.GONE);
         if (mMessageContentView != null) {
             mMessageContentView.loadDataWithBaseURL("email://", text, "text/html", "utf-8", null);
         }
@@ -1432,6 +1473,9 @@ public class MessageView extends Activity implements OnClickListener {
         // Ask for attachments after body
         mLoadAttachmentsTask = new LoadAttachmentsTask();
         mLoadAttachmentsTask.execute(mMessage.mId);
+        
+        //Log.d("MessageView", "-----------+ reloadUiFromBody() after mLoadAtachmentsTask.execute()");
+        //Log.d("MessageView", "-----------+ reloadUiFromBody() mShowInlineImages: " + mShowInlineImages);
     }
 
     /**
@@ -1621,7 +1665,26 @@ public class MessageView extends Activity implements OnClickListener {
         Uri contentUri =
             AttachmentProvider.resolveAttachmentIdToContentUri(getContentResolver(), attachmentUri);
 
-        if (mLoadAttachmentSave) {
+        if (mLoadInlineImage) {
+            mHtmlTextRaw = mHtmlTextWebView;
+            if (mHtmlTextRaw != null && attachment.mContentId != null && attachment.mContentUri != null) {
+                // for html body, replace CID for inline images
+                // Regexp which matches ' src="cid:contentId"'.
+                String contentIdRe =
+                    "\\s+(?i)src=\"cid(?-i):\\Q" + attachment.mContentId + "\\E\"";
+                String srcContentUri = " src=\"" + attachment.mContentUri + "\"";
+                mHtmlTextRaw = mHtmlTextRaw.replaceAll(contentIdRe, srcContentUri);
+
+                mHtmlTextWebView = mHtmlTextRaw;
+                mHtmlTextRaw = null;
+                mMessageContentView.loadDataWithBaseURL("email://", mHtmlTextWebView,
+                        "text/html", "utf-8", null);
+            }
+
+            if (mAttachments.getChildCount() == 0)
+                mShowPicturesSection.setVisibility(View.GONE);
+        }
+        else if (mLoadAttachmentSave) {
             try {
                 File file = createUniqueFile(Environment.getExternalStorageDirectory(),
                         attachment.mFileName);

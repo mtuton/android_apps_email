@@ -21,6 +21,10 @@ import com.android.email.Utility;
 import com.android.email.mail.Address;
 import com.android.email.mail.MeetingInfo;
 import com.android.email.mail.PackedString;
+import com.android.email.mail.internet.*;
+import com.android.email.mail.Multipart;
+import com.android.email.mail.MessagingException;
+import com.android.email.mail.BodyPart;
 import com.android.email.provider.AttachmentProvider;
 import com.android.email.provider.EmailContent;
 import com.android.email.provider.EmailProvider;
@@ -52,7 +56,12 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.HashMap;
 import java.util.TimeZone;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+
+import org.apache.commons.io.IOUtils;
 
 /**
  * Sync adapter for EAS email
@@ -83,6 +92,13 @@ public class EmailSyncAdapter extends AbstractSyncAdapter {
 
     // Holds the parser's value for isLooping()
     boolean mIsLooping = false;
+    
+    ArrayList<String> mimeAtts;
+    HashMap<String,String> mimeAttsContentTypes;
+
+    // These are used when parsing MIME messages
+    private StringBuffer textBody;
+    private StringBuffer htmlBody;
 
     public EmailSyncAdapter(Mailbox mailbox, EasSyncService service) {
         super(mailbox, service);
@@ -138,6 +154,10 @@ public class EmailSyncAdapter extends AbstractSyncAdapter {
 
         public void addData (Message msg) throws IOException {
             ArrayList<Attachment> atts = new ArrayList<Attachment>();
+            mimeAtts = new ArrayList<String>();
+            mimeAttsContentTypes = new HashMap<String,String>();
+            textBody = new StringBuffer();
+            htmlBody = new StringBuffer();
 
             while (nextTag(Tags.SYNC_APPLICATION_DATA) != END) {
                 switch (tag) {
@@ -180,6 +200,40 @@ public class EmailSyncAdapter extends AbstractSyncAdapter {
                         String text = getValue();
                         msg.mText = text;
                         break;
+                    case Tags.EMAIL_MIME_DATA:
+                        try {
+                            MimeMessage mimeMsg = new MimeMessage(new ByteArrayInputStream(getValue().getBytes()));
+
+                            if (mimeMsg.getBody() instanceof Multipart) {
+                                MimeMultipart multipart = (MimeMultipart) mimeMsg.getBody();
+                                parseMimeBody(multipart);
+
+                                if (htmlBody != null && htmlBody.length() != 0)
+                                    msg.mHtml = htmlBody.toString();
+                                else if (textBody != null)
+                                    msg.mText = textBody.toString();
+                                else
+                                    msg.mText = "";
+                            }
+                            else {
+                                InputStream in = mimeMsg.getBody().getInputStream();
+                                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                                IOUtils.copy(in, out);
+	                            in.close();
+	                            in = null;
+	                            String charset = MimeUtility.getHeaderParameter(mimeMsg.getContentType(), "charset");
+	                            if (charset == null)
+	                            	charset = "UTF-8";
+                                String mimeTxt = out.toString(charset);
+                                charset = null;
+                                out = null;
+                                if (mimeMsg.isMimeType("text/html"))
+                                    msg.mHtml = mimeTxt;
+                                else
+                                    msg.mText = mimeTxt;
+                           }
+                        } catch (MessagingException e) {}
+                        break;
                     case Tags.EMAIL_MESSAGE_CLASS:
                         String messageClass = getValue();
                         if (messageClass.equals("IPM.Schedule.Meeting.Request")) {
@@ -196,10 +250,51 @@ public class EmailSyncAdapter extends AbstractSyncAdapter {
                 }
             }
 
-            if (atts.size() > 0) {
+            if (atts.size() > 0 && mimeAtts != null) {
+                for(Attachment att : atts) {
+                	//userLog("EmailSyncAdapter: ", "att       : " + att.toString());
+                    for (String contentId : mimeAtts) {
+                    	//userLog("EmailSyncAdapter: ", "contentId : " + contentId);
+                        if (contentId == null)
+                            continue;
+
+                        String contentType = mimeAttsContentTypes.get(contentId);
+                        if (contentType == null)
+                        	continue;
+
+                        if (att.mFileName != null && contentType.contains(att.mFileName)) //contentId.contains(att.mFileName))
+                            att.mContentId = contentId;
+                    }
+                }
                 msg.mAttachments = atts;
             }
         }
+        
+        private void parseMimeBody(MimeMultipart multipart) {
+            try {
+                for (int i=0; i<multipart.getCount(); ++i) {
+                    BodyPart part = multipart.getBodyPart(i);
+                    
+                    //userLog("parseMimeBody() mimeType   : " + part.getMimeType());
+                    //userLog("parseMimeBody() contentId  : " + part.getContentId());
+                    //userLog("parseMimeBody() contentType: " + part.getContentType());
+
+                    if (part.isMimeType("text/plain"))
+                        textBody.append(MimeUtility.getTextFromPart(part));
+                    else if (part.isMimeType("text/html"))
+                        htmlBody.append(MimeUtility.getTextFromPart(part));
+                    else if (part.isMimeType("multipart/related"))
+                    	parseMimeBody((MimeMultipart)part.getBody());
+                    else if (part.isMimeType("multipart/alternative"))
+                        parseMimeBody((MimeMultipart)part.getBody());
+                    else {
+                        mimeAtts.add(part.getContentId());
+                        mimeAttsContentTypes.put(part.getContentId(), part.getContentType());
+                    }
+                }
+            }
+            catch (MessagingException e) {}
+       }
 
         /**
          * Set up the meetingInfo field in the message with various pieces of information gleaned
@@ -302,7 +397,7 @@ public class EmailSyncAdapter extends AbstractSyncAdapter {
         }
 
         private void bodyParser(Message msg) throws IOException {
-            String bodyType = Eas.BODY_PREFERENCE_TEXT;
+            String bodyType = Eas.BODY_PREFERENCE_HTML;
             String body = "";
             while (nextTag(Tags.EMAIL_BODY) != END) {
                 switch (tag) {

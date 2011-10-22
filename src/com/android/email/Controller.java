@@ -788,6 +788,49 @@ public class Controller {
     }
 
     /**
+     * Request that an inline attachment be loaded.  It will be stored at a location controlled
+     * by the AttachmentProvider.
+     *
+     * @param attachmentId the attachment to load
+     * @param messageId the owner message
+     * @param mailboxId the owner mailbox
+     * @param accountId the owner account
+     * @param callback the Controller callback by which results will be reported
+     */
+    public void loadInlineAttachment(final long attachmentId, final long messageId, final long mailboxId,
+            final long accountId, final Result callback) {
+
+        File saveToFile = AttachmentProvider.getAttachmentFilename(mProviderContext, accountId, attachmentId);
+        Attachment attachInfo = Attachment.restoreAttachmentWithId(mProviderContext, attachmentId);
+        
+        if (attachInfo == null) return;
+        if (saveToFile.exists() && attachInfo.mContentUri != null) return;
+
+        // Split here for target type (Service or MessagingController)
+        IEmailService service = getServiceForMessage(messageId);
+        if (service != null) {
+            // Service implementation
+            try {
+                service.loadAttachment(attachInfo.mId, saveToFile.getAbsolutePath(),
+                        AttachmentProvider.getAttachmentUri(accountId, attachmentId).toString());
+            } catch (RemoteException e) {
+                // TODO Change exception handling to be consistent with however this method
+                // is implemented for other protocols
+                Log.e("onDownloadAttachment", "RemoteException", e);
+            }
+        } else {
+            // MessagingController implementation
+            new Thread() {
+                @Override
+                public void run() {
+                    mLegacyController.loadAttachment(accountId, messageId, mailboxId, attachmentId,
+                            mLegacyListener);
+                }
+            }.start();
+        }
+    }
+    
+    /**
      * For a given message id, return a service proxy if applicable, or null.
      *
      * @param messageId the message of interest
