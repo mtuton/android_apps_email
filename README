@@ -1,1 +1,13 @@
 Android Email app with some minor modifications. 
+
+To use with Eclipse
+-------------------
+
+1. First build Android
+
+# cd /path/to/android/root
+# make
+
+2. Create a new Java Project in Eclipse using this existing source code. Call the project anything you want
+
+3. When finished making changes, use the Android "make" program to compile.

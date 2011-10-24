@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry excluding="images/|android/util/" kind="src" path="src"/>
-	<classpathentry kind="con" path="com.android.ide.eclipse.adt.ANDROID_FRAMEWORK"/>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="src" path="tests/src"/>
+	<classpathentry kind="lib" path="/home/michael/development/Android/out/target/common/obj/JAVA_LIBRARIES/framework_intermediates/classes.jar"/>
+	<classpathentry kind="lib" path="/home/michael/development/Android/out/target/common/obj/JAVA_LIBRARIES/core_intermediates/classes.jar"/>
+	<classpathentry kind="lib" path="/home/michael/development/Android/out/target/common/obj/JAVA_LIBRARIES/core-junit_intermediates/classes.jar"/>
+	<classpathentry kind="lib" path="/home/michael/development/Android/out/target/common/obj/JAVA_LIBRARIES/android_stubs_current_intermediates/classes.jar"/>
+	<classpathentry kind="lib" path="/home/michael/development/Android/out/target/common/obj/APPS/Email_intermediates/classes.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
