@@ -85,6 +85,7 @@ import android.provider.Calendar.Calendars;
 import android.provider.Calendar.Events;
 import android.provider.ContactsContract;
 import android.util.Log;
+import android.provider.Settings.Secure;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -229,6 +230,7 @@ public class SyncManager extends Service implements Runnable {
     private static Thread sServiceThread = null;
     // Cached unique device id
     private static String sDeviceId = null;
+    private String mAndroidUniqueId = null;
     // ConnectionManager that all EAS threads can use
     private static ClientConnectionManager sClientConnectionManager = null;
     // Count of ClientConnectionManager shutdowns
@@ -1037,6 +1039,16 @@ public class SyncManager extends Service implements Runnable {
         }
     }
 
+    public String getAndroidUniqueId() {
+/*    	Context context = INSTANCE;
+    	
+    	if (context == null) {
+    		return null;
+    	} else {
+*/    		return Secure.getString(this.getContentResolver(), Secure.ANDROID_ID);
+//    	}
+    }
+    
     /**
      * EAS requires a unique device id, so that sync is possible from a variety of different
      * devices (e.g. the syncKey is specific to a device)  If we're on an emulator or some other
@@ -1812,6 +1824,24 @@ public class SyncManager extends Service implements Runnable {
                     throw new RuntimeException();
                 }
             }
+            if (mAndroidUniqueId == null) {
+            	mAndroidUniqueId = getAndroidUniqueId();
+            }
+            
+            // testing SimpleCrypto
+            try {
+	            if (sDeviceId != null && mAndroidUniqueId != null) {
+	            	String seed = sDeviceId + mAndroidUniqueId;
+		            String someText = "Hello there this is some text";
+		            alwaysLog("!!! EAS SyncManager: someText: " + someText);
+		            String someTextEnc = com.android.email.helper.SimpleCrypto.encrypt(seed, someText);
+		            alwaysLog("!!! EAS SyncManager: someTextEnc: " + someTextEnc);
+		            String someTextClear = com.android.email.helper.SimpleCrypto.decrypt(seed, someTextEnc);
+		            alwaysLog("!!! EAS SyncManager: someTextClear: " + someTextClear);
+	            }
+            } catch (Exception e) {}
+            // end testing SimpleCrypto
+            
             // Run the reconciler and clean up any mismatched accounts - if we weren't running when
             // accounts were deleted, it won't have been called.
             runAccountReconciler();

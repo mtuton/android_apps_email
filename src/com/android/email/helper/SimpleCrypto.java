@@ -61,10 +61,12 @@ public class SimpleCrypto {
 	}
 
 	public static String toHex(String txt) {
-		return toHex(txt.getBytes());
+		//return toHex(txt.getBytes());
+		return Base64.encodeToString(txt.getBytes(), Base64.NO_WRAP);
 	}
 	public static String fromHex(String hex) {
-		return new String(toByte(hex));
+		//return new String(toByte(hex));
+		return new String(Base64.decode(hex, Base64.DEFAULT));
 	}
 	
 	public static byte[] toByte(String hexString) {
