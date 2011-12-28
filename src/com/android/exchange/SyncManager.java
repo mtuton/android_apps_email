@@ -887,11 +887,11 @@ public class SyncManager extends Service implements Runnable {
         }
 
         /**
-         * We increase the holdDelay by 5 minutes through to 30 minutes
+         * We increase the holdDelay by 16 minutes through to 35 minutes
          */
         void escalate() {
         	if (holdDelay < HOLD_DELAY_MAXIMUM) {
-        		holdDelay += 8*MINUTES;
+        		holdDelay += 16*MINUTES;
         	}
         	else if (holdDelay > HOLD_DELAY_MAXIMUM) {
                 holdDelay = HOLD_DELAY_MAXIMUM;
