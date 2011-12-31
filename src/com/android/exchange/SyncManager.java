@@ -128,7 +128,7 @@ public class SyncManager extends Service implements Runnable {
     private static final int CONNECTIVITY_WAIT_TIME = 60*MINUTES;
 
     // Sync hold constants for services with transient errors
-    private static final int HOLD_DELAY_MAXIMUM = 35*MINUTES;
+    private static final int HOLD_DELAY_MAXIMUM = 64*MINUTES;
 
     // Reason codes when SyncManager.kick is called (mainly for debugging)
     // UI has changed data, requiring an upsync of changes
@@ -878,7 +878,7 @@ public class SyncManager extends Service implements Runnable {
     /*package*/ class SyncError {
         int reason;
         boolean fatal = false;
-        long holdDelay = 10*MINUTES;
+        long holdDelay = 16*MINUTES; // initial hold delay of 16 minutes
         long holdEndTime = System.currentTimeMillis() + holdDelay;
 
         SyncError(int _reason, boolean _fatal) {
@@ -887,11 +887,11 @@ public class SyncManager extends Service implements Runnable {
         }
 
         /**
-         * We increase the holdDelay by 16 minutes through to 35 minutes
+         * We increase the holdDelay by increments of 8 minutes through to 35 minutes
          */
         void escalate() {
         	if (holdDelay < HOLD_DELAY_MAXIMUM) {
-        		holdDelay += 16*MINUTES;
+        		holdDelay += 8*MINUTES;
         	}
         	else if (holdDelay > HOLD_DELAY_MAXIMUM) {
                 holdDelay = HOLD_DELAY_MAXIMUM;
