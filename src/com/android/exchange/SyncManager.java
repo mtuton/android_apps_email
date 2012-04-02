@@ -1742,6 +1742,7 @@ public class SyncManager extends Service implements Runnable {
             if (info != null) {
                 // We're done if there's an active network
                 if (waiting) {
+                    log("Connectivity: connection established ..." + theTimeNow())
                     // If we've been waiting, release any I/O error holds
                     releaseSyncHolds(this, AbstractSyncService.EXIT_IO_ERROR, null);
                     // And log what's still being held
@@ -1763,7 +1764,7 @@ public class SyncManager extends Service implements Runnable {
                         log("Connectivity: no connection, waiting ..." + theTimeNow());
                         sConnectivityHold = true;
                         sConnectivityLock.wait(CONNECTIVITY_WAIT_TIME);
-                        log("Connectivity: no connection, trying again..." + theTimeNow());
+                        //log("Connectivity: no connection, trying again..." + theTimeNow());
                     } catch (InterruptedException e) {
                         // This is fine; we just go around the loop again
                     } finally {
