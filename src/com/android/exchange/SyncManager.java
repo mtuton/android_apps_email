@@ -1753,6 +1753,7 @@ public class SyncManager extends Service implements Runnable {
                 // If this is our first time through the loop, shut down running service threads
                 if (!waiting) {
                     waiting = true;
+                    log("Connectivity: preparing to wait, stopping Service Threads ...");
                     stopServiceThreads();
                 }
                 // Wait until a network is connected (or 60 mins), but let the device sleep
