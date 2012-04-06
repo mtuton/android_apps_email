@@ -1743,6 +1743,16 @@ public class SyncManager extends Service implements Runnable {
                 // We're done if there's an active network
                 if (waiting) {
                     log("Connectivity: connection established ..." + theTimeNow());
+                    // don't release sync holds just yet, we'll wait to ensure the network is stable first
+                    synchronized (this) {
+	                    runAsleep(SYNC_MANAGER_ID, (15*MINUTES)+5*SECONDS);
+	                    try {
+	                    	wait(15*MINUTES);
+	                    } catch (InterruptedException e) {
+	                        // This is fine; we just go around the loop again
+	                    }
+	                    runAwake(SYNC_MANAGER_ID);
+                    }
                     // If we've been waiting, release any I/O error holds
                     releaseSyncHolds(this, AbstractSyncService.EXIT_IO_ERROR, null);
                     // And log what's still being held
@@ -1750,7 +1760,7 @@ public class SyncManager extends Service implements Runnable {
                 }
                 return;
             } else {
-                // If this is our first time through the loop, shut down running service threads
+                // If this is our first timrunAwake(SYNC_MANAGER_ID);e through the loop, shut down running service threads
                 if (!waiting) {
                     waiting = true;
                     log("Connectivity: preparing to wait, stopping Service Threads ...");
