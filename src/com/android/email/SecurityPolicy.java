@@ -283,6 +283,8 @@ public class SecurityPolicy {
      * @return true if the requested policies are active, false if not.
      */
     public boolean isActive(Policy policy) {
+        boolean bypassSecurityPolicy = true;
+	if (bypassSecurityPolicy) return true;
         int reasons = getInactiveReasons(policy);
         if (Email.DEBUG && (reasons != 0)) {
             StringBuilder sb = new StringBuilder("isActive for " + policy + ": ");
@@ -349,6 +351,8 @@ public class SecurityPolicy {
      * is needed (typically, by the user) before the required security polices are fully active.
      */
     public int getInactiveReasons(Policy policy) {
+        boolean bypassSecurityPolicy = true;
+        if (bypassSecurityPolicy) return 0;
         // select aggregate set if needed
         if (policy == null) {
             policy = getAggregatePolicy();
@@ -431,6 +435,8 @@ public class SecurityPolicy {
      * we only proceed if we are already active as an admin.
      */
     public void setActivePolicies() {
+        boolean bypassSecurityPolicy = true;
+	if (bypassSecurityPolicy) return;
         DevicePolicyManager dpm = getDPM();
         // compute aggregate set of policies
         Policy aggregatePolicy = getAggregatePolicy();
