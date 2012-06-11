@@ -79,9 +79,9 @@ public class Device {
         final String consistentDeviceId = getConsistentDeviceId(context);
         if (consistentDeviceId != null) {
             // Use different prefix from random IDs.
-            id = "androidc" + consistentDeviceId;
+            id = "Appl" + consistentDeviceId;
         } else {
-            id = "android" + System.currentTimeMillis();
+            id = "Appl" + System.currentTimeMillis();
         }
         w.write(id);
         w.close();
